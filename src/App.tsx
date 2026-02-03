@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminUsers from "./pages/admin/Users";
@@ -27,7 +29,6 @@ import Discovery from "./pages/client/Discovery";
 import ClientMessages from "./pages/client/Messages";
 import Checkout from "./pages/client/Checkout";
 
-// Placeholders para as outras áreas
 const ClientDashboard = () => <div className="p-8"><h1>Painel Contratante</h1></div>;
 
 const queryClient = new QueryClient();
@@ -40,6 +41,8 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           
           {/* Painel Administrativo */}
           <Route path="/admin" element={<AdminLayout />}>
