@@ -19,8 +19,10 @@ import ProPlans from "./pages/pro/Plans";
 import Feed from "./pages/pro/Feed";
 import ProAgenda from "./pages/pro/Agenda";
 import ProProfile from "./pages/pro/Profile";
+import ProMessages from "./pages/pro/Messages";
 import ClientLayout from "./pages/client/ClientLayout";
 import Discovery from "./pages/client/Discovery";
+import ClientMessages from "./pages/client/Messages";
 
 // Placeholders para as outras áreas
 const ClientDashboard = () => <div className="p-8"><h1>Painel Contratante</h1></div>;
@@ -50,7 +52,8 @@ const App = () => (
           <Route path="/pro" element={<ProLayout />}>
             <Route index element={<ProDashboard />} />
             <Route path="profile" element={<ProProfile />} />
-            <Route path="feed" element={<Feed />} />
+            <Route path="feed" element={<ProMessages />} /> {/* Usando Messages como Feed por enquanto ou criando rota específica */}
+            <Route path="messages" element={<ProMessages />} />
             <Route path="agenda" element={<ProAgenda />} />
             <Route path="achievements" element={<ProPlans />} />
             <Route path="finance" element={<ProFinance />} />
@@ -61,7 +64,7 @@ const App = () => (
             <Route index element={<ClientDashboard />} />
             <Route path="discovery" element={<Discovery />} />
             <Route path="events" element={<div className="p-8"><h1>Meus Eventos</h1></div>} />
-            <Route path="messages" element={<div className="p-8"><h1>Mensagens</h1></div>} />
+            <Route path="messages" element={<ClientMessages />} />
             <Route path="favorites" element={<div className="p-8"><h1>Favoritos</h1></div>} />
             <Route path="payments" element={<div className="p-8"><h1>Histórico de Pagamentos</h1></div>} />
           </Route>
