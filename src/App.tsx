@@ -21,6 +21,7 @@ import ProAgenda from "./pages/pro/Agenda";
 import ProProfile from "./pages/pro/Profile";
 import ProMessages from "./pages/pro/Messages";
 import ProAchievements from "./pages/pro/Achievements";
+import ProReviews from "./pages/pro/Reviews";
 import ClientLayout from "./pages/client/ClientLayout";
 import Discovery from "./pages/client/Discovery";
 import ClientMessages from "./pages/client/Messages";
@@ -55,6 +56,7 @@ const App = () => (
             <Route index element={<ProDashboard />} />
             <Route path="profile" element={<ProProfile />} />
             <Route path="feed" element={<Feed />} />
+            <Route path="reviews" element={<ProReviews />} />
             <Route path="messages" element={<ProMessages />} />
             <Route path="agenda" element={<ProAgenda />} />
             <Route path="achievements" element={<ProAchievements />} />

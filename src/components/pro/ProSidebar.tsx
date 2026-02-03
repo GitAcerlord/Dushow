@@ -11,7 +11,8 @@ import {
   CreditCard,
   Sparkles,
   LogOut,
-  Mic2
+  Mic2,
+  Star
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +20,7 @@ const menuItems = [
   { icon: LayoutDashboard, label: 'Meu Painel', path: '/pro' },
   { icon: UserCircle, label: 'Meu Perfil', path: '/pro/profile' },
   { icon: MessageSquare, label: 'Feed Social', path: '/pro/feed' },
+  { icon: Star, label: 'Avaliações', path: '/pro/reviews' },
   { icon: Calendar, label: 'Minha Agenda', path: '/pro/agenda' },
   { icon: Trophy, label: 'Conquistas', path: '/pro/achievements' },
   { icon: Sparkles, label: 'Planos & Upgrade', path: '/pro/plans' },
