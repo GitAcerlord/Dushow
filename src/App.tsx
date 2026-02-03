@@ -12,6 +12,7 @@ import ProDashboard from "./pages/pro/Dashboard";
 import ProFinance from "./pages/pro/Finance";
 import ProPlans from "./pages/pro/Plans";
 import Feed from "./pages/pro/Feed";
+import ProAgenda from "./pages/pro/Agenda";
 import ClientLayout from "./pages/client/ClientLayout";
 import Discovery from "./pages/client/Discovery";
 
@@ -44,7 +45,7 @@ const App = () => (
             <Route index element={<ProDashboard />} />
             <Route path="profile" element={<div className="p-8"><h1>Meu Perfil & Portfólio</h1></div>} />
             <Route path="feed" element={<Feed />} />
-            <Route path="agenda" element={<div className="p-8"><h1>Minha Agenda</h1></div>} />
+            <Route path="agenda" element={<ProAgenda />} />
             <Route path="achievements" element={<ProPlans />} />
             <Route path="finance" element={<ProFinance />} />
           </Route>
