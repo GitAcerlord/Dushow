@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">cosmic-tardigrade-peek</string>
+    <string name="title_activity_main">cosmic-tardigrade-peek</string>
+    <string name="package_name">com.example.cosmictardigradepeek</string>
+    <string name="custom_url_scheme">com.example.cosmictardigradepeek</string>
+</resources>
