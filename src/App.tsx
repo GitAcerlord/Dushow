@@ -6,6 +6,11 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
+// Placeholder para as áreas que criaremos a seguir
+const AdminDashboard = () => <div className="p-8"><h1>Painel Super Admin</h1></div>;
+const ProDashboard = () => <div className="p-8"><h1>Painel Profissional</h1></div>;
+const ClientDashboard = () => <div className="p-8"><h1>Painel Contratante</h1></div>;
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -16,7 +21,12 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          
+          {/* Áreas Protegidas (Simuladas) */}
+          <Route path="/admin/*" element={<AdminDashboard />} />
+          <Route path="/pro/*" element={<ProDashboard />} />
+          <Route path="/client/*" element={<ClientDashboard />} />
+
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
