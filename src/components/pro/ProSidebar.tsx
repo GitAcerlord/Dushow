@@ -5,11 +5,11 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   UserCircle, 
-  Image as ImageIcon, 
   MessageSquare, 
   Calendar,
   Trophy,
   CreditCard,
+  Sparkles,
   LogOut,
   Mic2
 } from 'lucide-react';
@@ -21,6 +21,7 @@ const menuItems = [
   { icon: MessageSquare, label: 'Feed Social', path: '/pro/feed' },
   { icon: Calendar, label: 'Minha Agenda', path: '/pro/agenda' },
   { icon: Trophy, label: 'Conquistas', path: '/pro/achievements' },
+  { icon: Sparkles, label: 'Planos & Upgrade', path: '/pro/plans' },
   { icon: CreditCard, label: 'Financeiro', path: '/pro/finance' },
 ];
 

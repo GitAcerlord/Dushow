@@ -58,6 +58,7 @@ const App = () => (
             <Route path="messages" element={<ProMessages />} />
             <Route path="agenda" element={<ProAgenda />} />
             <Route path="achievements" element={<ProAchievements />} />
+            <Route path="plans" element={<ProPlans />} />
             <Route path="finance" element={<ProFinance />} />
           </Route>
 
