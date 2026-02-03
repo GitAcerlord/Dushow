@@ -10,6 +10,7 @@ import AdminDashboard from "./pages/admin/Dashboard";
 import AdminUsers from "./pages/admin/Users";
 import AdminContracts from "./pages/admin/Contracts";
 import AdminApprovals from "./pages/admin/Approvals";
+import AdminSettings from "./pages/admin/Settings";
 import ProLayout from "./pages/pro/ProLayout";
 import ProDashboard from "./pages/pro/Dashboard";
 import ProFinance from "./pages/pro/Finance";
@@ -41,7 +42,7 @@ const App = () => (
             <Route path="contracts" element={<AdminContracts />} />
             <Route path="finance" element={<div className="p-8"><h1>Financeiro & ASAAS</h1></div>} />
             <Route path="approvals" element={<AdminApprovals />} />
-            <Route path="settings" element={<div className="p-8"><h1>Configurações do Sistema</h1></div>} />
+            <Route path="settings" element={<AdminSettings />} />
           </Route>
 
           {/* Painel do Profissional */}
