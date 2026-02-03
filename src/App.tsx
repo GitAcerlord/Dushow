@@ -9,6 +9,8 @@ import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/Dashboard";
 import ProLayout from "./pages/pro/ProLayout";
 import ProDashboard from "./pages/pro/Dashboard";
+import ProFinance from "./pages/pro/Finance";
+import ProPlans from "./pages/pro/Plans";
 
 // Placeholders para as outras áreas
 const ClientDashboard = () => <div className="p-8"><h1>Painel Contratante</h1></div>;
@@ -40,8 +42,8 @@ const App = () => (
             <Route path="profile" element={<div className="p-8"><h1>Meu Perfil & Portfólio</h1></div>} />
             <Route path="feed" element={<div className="p-8"><h1>Feed Social & Engajamento</h1></div>} />
             <Route path="agenda" element={<div className="p-8"><h1>Minha Agenda</h1></div>} />
-            <Route path="achievements" element={<div className="p-8"><h1>Conquistas & Gamificação</h1></div>} />
-            <Route path="finance" element={<div className="p-8"><h1>Financeiro & Extrato ASAAS</h1></div>} />
+            <Route path="achievements" element={<ProPlans />} /> {/* Usando a página de planos aqui por enquanto */}
+            <Route path="finance" element={<ProFinance />} />
           </Route>
 
           {/* Painel do Contratante */}
