@@ -2,12 +2,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import AdminLayout from "./pages/admin/AdminLayout";
+import AdminDashboard from "./pages/admin/Dashboard";
 
-// Placeholder para as áreas que criaremos a seguir
-const AdminDashboard = () => <div className="p-8"><h1>Painel Super Admin</h1></div>;
+// Placeholders para as outras áreas
 const ProDashboard = () => <div className="p-8"><h1>Painel Profissional</h1></div>;
 const ClientDashboard = () => <div className="p-8"><h1>Painel Contratante</h1></div>;
 
@@ -22,8 +23,17 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           
-          {/* Áreas Protegidas (Simuladas) */}
-          <Route path="/admin/*" element={<AdminDashboard />} />
+          {/* Painel Administrativo */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="users" element={<div className="p-8"><h1>Gestão de Usuários</h1></div>} />
+            <Route path="contracts" element={<div className="p-8"><h1>Monitoramento de Contratos</h1></div>} />
+            <Route path="finance" element={<div className="p-8"><h1>Financeiro & ASAAS</h1></div>} />
+            <Route path="approvals" element={<div className="p-8"><h1>Aprovação de Selos</h1></div>} />
+            <Route path="settings" element={<div className="p-8"><h1>Configurações do Sistema</h1></div>} />
+          </Route>
+
+          {/* Outras Áreas */}
           <Route path="/pro/*" element={<ProDashboard />} />
           <Route path="/client/*" element={<ClientDashboard />} />
 
