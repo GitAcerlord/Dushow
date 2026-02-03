@@ -9,6 +9,7 @@ import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminUsers from "./pages/admin/Users";
 import AdminContracts from "./pages/admin/Contracts";
+import AdminApprovals from "./pages/admin/Approvals";
 import ProLayout from "./pages/pro/ProLayout";
 import ProDashboard from "./pages/pro/Dashboard";
 import ProFinance from "./pages/pro/Finance";
@@ -17,7 +18,7 @@ import Feed from "./pages/pro/Feed";
 import ProAgenda from "./pages/pro/Agenda";
 import ProProfile from "./pages/pro/Profile";
 import ClientLayout from "./pages/client/ClientLayout";
-import Discovery from "./discovery/Discovery";
+import Discovery from "./pages/client/Discovery";
 
 // Placeholders para as outras áreas
 const ClientDashboard = () => <div className="p-8"><h1>Painel Contratante</h1></div>;
@@ -39,7 +40,7 @@ const App = () => (
             <Route path="users" element={<AdminUsers />} />
             <Route path="contracts" element={<AdminContracts />} />
             <Route path="finance" element={<div className="p-8"><h1>Financeiro & ASAAS</h1></div>} />
-            <Route path="approvals" element={<div className="p-8"><h1>Aprovação de Selos</h1></div>} />
+            <Route path="approvals" element={<AdminApprovals />} />
             <Route path="settings" element={<div className="p-8"><h1>Configurações do Sistema</h1></div>} />
           </Route>
 
