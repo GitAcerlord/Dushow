@@ -7,9 +7,10 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/Dashboard";
+import ProLayout from "./pages/pro/ProLayout";
+import ProDashboard from "./pages/pro/Dashboard";
 
 // Placeholders para as outras áreas
-const ProDashboard = () => <div className="p-8"><h1>Painel Profissional</h1></div>;
 const ClientDashboard = () => <div className="p-8"><h1>Painel Contratante</h1></div>;
 
 const queryClient = new QueryClient();
@@ -33,8 +34,17 @@ const App = () => (
             <Route path="settings" element={<div className="p-8"><h1>Configurações do Sistema</h1></div>} />
           </Route>
 
-          {/* Outras Áreas */}
-          <Route path="/pro/*" element={<ProDashboard />} />
+          {/* Painel do Profissional */}
+          <Route path="/pro" element={<ProLayout />}>
+            <Route index element={<ProDashboard />} />
+            <Route path="profile" element={<div className="p-8"><h1>Meu Perfil & Portfólio</h1></div>} />
+            <Route path="feed" element={<div className="p-8"><h1>Feed Social & Engajamento</h1></div>} />
+            <Route path="agenda" element={<div className="p-8"><h1>Minha Agenda</h1></div>} />
+            <Route path="achievements" element={<div className="p-8"><h1>Conquistas & Gamificação</h1></div>} />
+            <Route path="finance" element={<div className="p-8"><h1>Financeiro & Extrato ASAAS</h1></div>} />
+          </Route>
+
+          {/* Painel do Contratante */}
           <Route path="/client/*" element={<ClientDashboard />} />
 
           <Route path="*" element={<NotFound />} />
