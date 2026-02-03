@@ -13,6 +13,7 @@ import ProFinance from "./pages/pro/Finance";
 import ProPlans from "./pages/pro/Plans";
 import Feed from "./pages/pro/Feed";
 import ProAgenda from "./pages/pro/Agenda";
+import ProProfile from "./pages/pro/Profile";
 import ClientLayout from "./pages/client/ClientLayout";
 import Discovery from "./pages/client/Discovery";
 
@@ -43,7 +44,7 @@ const App = () => (
           {/* Painel do Profissional */}
           <Route path="/pro" element={<ProLayout />}>
             <Route index element={<ProDashboard />} />
-            <Route path="profile" element={<div className="p-8"><h1>Meu Perfil & Portfólio</h1></div>} />
+            <Route path="profile" element={<ProProfile />} />
             <Route path="feed" element={<Feed />} />
             <Route path="agenda" element={<ProAgenda />} />
             <Route path="achievements" element={<ProPlans />} />
