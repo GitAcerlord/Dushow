@@ -54,7 +54,7 @@ const App = () => (
           <Route path="/pro" element={<ProLayout />}>
             <Route index element={<ProDashboard />} />
             <Route path="profile" element={<ProProfile />} />
-            <Route path="feed" element={<ProMessages />} />
+            <Route path="feed" element={<Feed />} />
             <Route path="messages" element={<ProMessages />} />
             <Route path="agenda" element={<ProAgenda />} />
             <Route path="achievements" element={<ProAchievements />} />
