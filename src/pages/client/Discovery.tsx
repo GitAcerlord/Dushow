@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,8 @@ const artists = [
 ];
 
 const Discovery = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="p-8 space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -131,7 +134,10 @@ const Discovery = () => {
                   <p className="text-xs text-slate-400 uppercase font-bold">Cachê a partir de</p>
                   <p className="text-lg font-bold text-slate-900">R$ {artist.price.toLocaleString('pt-BR')}</p>
                 </div>
-                <Button className="bg-indigo-600 hover:bg-indigo-700 rounded-xl">
+                <Button 
+                  onClick={() => navigate('/client/checkout')}
+                  className="bg-indigo-600 hover:bg-indigo-700 rounded-xl"
+                >
                   Contratar
                 </Button>
               </div>
