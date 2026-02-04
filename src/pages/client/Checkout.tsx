@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, CreditCard, ArrowLeft, Loader2, Lock } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
-import { showError } from "@/utils/toast";
+import { showError, showSuccess } from "@/utils/toast";
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -36,24 +36,23 @@ const Checkout = () => {
 
     setIsProcessing(true);
     try {
-      // Chamada real para a Edge Function do Stripe
-      const { data, error } = await supabase.functions.invoke('stripe-checkout', {
-        body: {
-          artistId: artist.id,
-          artistName: artist.full_name,
-          amount: artist.price,
-          clientId: user.id,
-          eventName: `Show com ${artist.full_name}`
-        }
+      // 1. Criar o Contrato no Banco de Dados
+      const { error: contractError } = await supabase.from('contracts').insert({
+        client_id: user.id,
+        pro_id: artist.id,
+        event_name: `Show com ${artist.full_name}`,
+        event_date: new Date(Date.now() + 604800000).toISOString(), // +7 dias
+        value: artist.price,
+        status: 'PAID' // Simulando que o pagamento foi confirmado
       });
 
-      if (error) throw error;
-      if (data?.url) {
-        window.location.href = data.url; // Redireciona para o Stripe real
-      }
+      if (contractError) throw contractError;
+
+      showSuccess("Pagamento confirmado e contrato gerado!");
+      navigate('/client');
     } catch (error: any) {
       console.error("Erro no Checkout:", error);
-      showError("Falha ao iniciar pagamento. Tente novamente.");
+      showError("Falha ao processar pagamento.");
     } finally {
       setIsProcessing(false);
     }
@@ -71,11 +70,11 @@ const Checkout = () => {
           <Card className="p-8 border-none shadow-sm bg-white rounded-[2rem] space-y-6">
             <div className="flex items-center gap-3 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
               <ShieldCheck className="text-indigo-600 w-5 h-5" />
-              <p className="text-sm text-indigo-900 font-medium">Pagamento processado via **Stripe** com garantia de Escrow DUSHOW.</p>
+              <p className="text-sm text-indigo-900 font-medium">Pagamento processado via **DUSHOW Escrow** com garantia de entrega.</p>
             </div>
             <div className="space-y-4">
               <p className="text-slate-600 text-sm">
-                Ao clicar em pagar, você será redirecionado para o ambiente seguro do Stripe para concluir a transação.
+                O valor ficará retido na plataforma e só será liberado ao artista após a conclusão do evento.
               </p>
             </div>
           </Card>
@@ -96,7 +95,7 @@ const Checkout = () => {
             disabled={isProcessing}
             className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 font-black rounded-xl shadow-lg shadow-indigo-100"
           >
-            {isProcessing ? <Loader2 className="animate-spin" /> : "Ir para Pagamento Seguro"}
+            {isProcessing ? <Loader2 className="animate-spin" /> : "Confirmar e Pagar Cachê"}
           </Button>
         </Card>
       </div>

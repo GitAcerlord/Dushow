@@ -57,7 +57,7 @@ const Feed = () => {
       // 2. Conceder 5 pontos de XP
       const { error: xpError } = await supabase
         .from('profiles')
-        .update({ points: (userProfile.points || 0) + 5 })
+        .update({ xp_total: (userProfile.xp_total || 0) + 5 })
         .eq('id', userProfile.id);
       
       if (xpError) throw xpError;
