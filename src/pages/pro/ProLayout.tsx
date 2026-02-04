@@ -1,11 +1,30 @@
 "use client";
 
-import React from 'react';
-import { Outlet } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
 import ProSidebar from '@/components/pro/ProSidebar';
-import { Bell, Search } from 'lucide-react';
+import { Bell, Search, Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 const ProLayout = () => {
+  const [profile, setProfile] = useState<any>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const getProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate('/login');
+        return;
+      }
+      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      setProfile(data);
+    };
+    getProfile();
+  }, [navigate]);
+
+  if (!profile) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-indigo-600" /></div>;
+
   return (
     <div className="min-h-screen bg-slate-50 flex">
       <ProSidebar />
@@ -26,11 +45,11 @@ const ProLayout = () => {
             </button>
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <p className="text-sm font-bold text-slate-900">DJ Alok</p>
-                <p className="text-xs text-emerald-600 font-medium">Plano Superstar</p>
+                <p className="text-sm font-bold text-slate-900">{profile.full_name}</p>
+                <p className="text-xs text-emerald-600 font-medium">{profile.is_superstar ? 'Plano Superstar' : 'Plano Pro'}</p>
               </div>
-              <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold overflow-hidden">
-                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alok" alt="Avatar" />
+              <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold overflow-hidden border-2 border-indigo-100">
+                <img src={profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.full_name}`} alt="Avatar" className="w-full h-full object-cover" />
               </div>
             </div>
           </div>
