@@ -5,10 +5,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Calendar, MapPin, DollarSign, CheckCircle2, XCircle, Clock, Loader2, FileText
+  Calendar, MapPin, DollarSign, CheckCircle2, XCircle, Clock, Loader2, FileText, Zap
 } from "lucide-react";
-import { supabase } from '@/lib/supabase';
+import { Link } from "react-router-dom";
+import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from "@/utils/toast";
+import { cn } from "@/lib/utils";
 
 const ProContracts = () => {
   const [contracts, setContracts] = useState<any[]>([]);
@@ -39,18 +41,30 @@ const ProContracts = () => {
     }
   };
 
-  const updateStatus = async (id: string, status: string) => {
+  const handleAction = async (id: string, newStatus: string) => {
     try {
-      const { error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // 1. Atualizar Status do Contrato
+      const { error: updateError } = await supabase
         .from('contracts')
-        .update({ status })
+        .update({ status: newStatus })
         .eq('id', id);
 
-      if (error) throw error;
-      showSuccess(`Contrato ${status === 'PAID' ? 'aceito' : 'cancelado'} com sucesso!`);
+      if (updateError) throw updateError;
+
+      // 2. Se concluído, dar XP (+100 XP por show)
+      if (newStatus === 'COMPLETED' && user) {
+        const { data: profile } = await supabase.from('profiles').select('xp_total').eq('id', user.id).single();
+        await supabase.from('profiles').update({ xp_total: (profile?.xp_total || 0) + 100 }).eq('id', user.id);
+        showSuccess("Evento concluído! +100 XP conquistados.");
+      } else {
+        showSuccess(`Contrato atualizado para ${newStatus}.`);
+      }
+
       fetchContracts();
     } catch (error: any) {
-      showError("Erro ao atualizar contrato.");
+      showError("Erro ao processar ação.");
     }
   };
 
@@ -58,57 +72,52 @@ const ProContracts = () => {
 
   return (
     <div className="p-4 md:p-8 space-y-8 max-w-5xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">Meus Contratos</h1>
-        <p className="text-slate-500 mt-1">Gerencie suas propostas e eventos confirmados.</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-black text-slate-900">Meus Contratos</h1>
+          <p className="text-slate-500">Acompanhe o fluxo desde a proposta até o cachê.</p>
+        </div>
+        <div className="flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-xl border border-indigo-100">
+          <Zap className="w-4 h-4 text-indigo-600" />
+          <span className="text-xs font-bold text-indigo-900">+100 XP por Show</span>
+        </div>
       </div>
 
       <div className="grid gap-6">
-        {contracts.length === 0 ? (
-          <Card className="p-12 text-center text-slate-400">Você ainda não possui contratos.</Card>
-        ) : (
-          contracts.map((contract) => (
-            <Card key={contract.id} className="p-6 border-none shadow-sm bg-white flex flex-col md:flex-row gap-6 items-start md:items-center">
-              <div className="flex-1 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-slate-900">{contract.event_name}</h3>
-                  <Badge className={cn(
-                    "uppercase text-[10px] font-bold",
-                    contract.status === 'PAID' ? 'bg-emerald-50 text-emerald-600' : 
-                    contract.status === 'PENDING' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'
-                  )}>
-                    {contract.status}
-                  </Badge>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-500">
-                  <div className="flex items-center gap-2"><Calendar className="w-4 h-4" /> {new Date(contract.event_date).toLocaleDateString()}</div>
-                  <div className="flex items-center gap-2"><Clock className="w-4 h-4" /> {new Date(contract.event_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                  <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /> {contract.event_location || 'Local a definir'}</div>
-                  <div className="flex items-center gap-2 font-bold text-indigo-600"><DollarSign className="w-4 h-4" /> R$ {Number(contract.value).toLocaleString('pt-BR')}</div>
-                </div>
-
-                <div className="pt-4 border-t flex items-center gap-3">
-                  <div className="text-xs text-slate-400 uppercase font-bold">Contratante:</div>
-                  <div className="flex items-center gap-2">
-                    <img src={contract.profiles?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${contract.profiles?.full_name}`} className="w-6 h-6 rounded-full" />
-                    <span className="text-sm font-bold text-slate-700">{contract.profiles?.full_name}</span>
-                  </div>
-                </div>
+        {contracts.map((contract) => (
+          <Card key={contract.id} className="p-6 border-none shadow-sm bg-white flex flex-col md:flex-row gap-6 items-start md:items-center">
+            <div className="flex-1 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-slate-900">{contract.event_name}</h3>
+                <Badge className={cn(
+                  "uppercase text-[10px] font-bold",
+                  contract.status === 'PAID' ? 'bg-emerald-50 text-emerald-600' : 
+                  contract.status === 'PENDING' ? 'bg-amber-50 text-amber-600' : 
+                  contract.status === 'COMPLETED' ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'
+                )}>
+                  {contract.status}
+                </Badge>
               </div>
-
-              <div className="flex flex-row md:flex-col gap-2 w-full md:w-auto">
-                {contract.status === 'PENDING' && (
-                  <>
-                    <Button onClick={() => updateStatus(contract.id, 'PAID')} className="bg-emerald-600 hover:bg-emerald-700 flex-1">Aceitar</Button>
-                    <Button onClick={() => updateStatus(contract.id, 'CANCELLED')} variant="outline" className="text-red-600 border-red-100 hover:bg-red-50 flex-1">Recusar</Button>
-                  </>
-                )}
-                <Button variant="ghost" className="text-indigo-600 gap-2 flex-1"><FileText className="w-4 h-4" /> Detalhes</Button>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-500">
+                <div className="flex items-center gap-2"><Calendar className="w-4 h-4" /> {new Date(contract.event_date).toLocaleDateString()}</div>
+                <div className="flex items-center gap-2 font-bold text-indigo-600"><DollarSign className="w-4 h-4" /> R$ {Number(contract.value).toLocaleString('pt-BR')}</div>
               </div>
-            </Card>
-          ))
-        )}
+            </div>
+
+            <div className="flex flex-row md:flex-col gap-2 w-full md:w-auto">
+              {contract.status === 'PENDING' && (
+                <Button onClick={() => handleAction(contract.id, 'ACCEPTED')} className="bg-indigo-600 flex-1">Aceitar Proposta</Button>
+              )}
+              {contract.status === 'PAID' && (
+                <Button onClick={() => handleAction(contract.id, 'COMPLETED')} className="bg-emerald-600 flex-1">Concluir Evento</Button>
+              )}
+              <Button variant="ghost" asChild className="text-indigo-600 gap-2 flex-1">
+                <Link to={`/pro/contracts/${contract.id}`}><FileText className="w-4 h-4" /> Ver Contrato</Link>
+              </Button>
+            </div>
+          </Card>
+        ))}
       </div>
     </div>
   );
