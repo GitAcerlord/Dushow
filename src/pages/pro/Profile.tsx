@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { 
-  Star, MapPin, Music, Edit3, Camera, CheckCircle2, Award, Save, X, Loader2, DollarSign
+  Star, MapPin, Music, Edit3, Camera, CheckCircle2, Award, Save, X, Loader2, DollarSign, Briefcase, Image as ImageIcon
 } from "lucide-react";
 import { supabase } from '@/lib/supabase';
 import { showSuccess, showError } from '@/utils/toast';
@@ -17,7 +17,6 @@ const ProProfile = () => {
   const [profile, setProfile] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState<any>({});
 
   useEffect(() => {
@@ -25,51 +24,13 @@ const ProProfile = () => {
   }, []);
 
   const fetchProfile = async () => {
-    setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-      if (error) throw error;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       setProfile(data);
       setFormData(data);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
     }
-  };
-
-  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      setUploading(true);
-      const file = event.target.files?.[0];
-      if (!file) return;
-
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${profile.id}-${Math.random()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
-
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('id', profile.id);
-
-      if (updateError) throw updateError;
-
-      setProfile({ ...profile, avatar_url: publicUrl });
-      showSuccess("Foto de perfil atualizada!");
-    } catch (error: any) {
-      showError("Erro ao subir foto.");
-    } finally {
-      setUploading(false);
-    }
+    setLoading(false);
   };
 
   const handleSave = async () => {
@@ -78,80 +39,114 @@ const ProProfile = () => {
       if (error) throw error;
       setProfile(formData);
       setIsEditing(false);
-      showSuccess("Perfil salvo!");
+      showSuccess("Perfil atualizado!");
     } catch (error: any) {
       showError(error.message);
     }
   };
 
-  if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin w-8 h-8 text-indigo-600" /></div>;
+  if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin" /></div>;
 
   return (
-    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-8">
-      <Card className="p-8 border-none shadow-sm bg-white relative overflow-hidden rounded-3xl">
-        <div className="relative flex flex-col md:flex-row gap-8 items-center">
-          <div className="relative group">
-            <div className="w-32 h-32 rounded-3xl overflow-hidden border-4 border-white shadow-xl bg-slate-100">
-              <img src={profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.full_name}`} alt="Profile" className="w-full h-full object-cover" />
+    <div className="p-8 max-w-5xl mx-auto space-y-8">
+      <Card className="p-8 border-none shadow-2xl bg-white rounded-[2.5rem] overflow-hidden relative">
+        <div className="flex flex-col md:flex-row gap-10 items-start">
+          <div className="relative shrink-0">
+            <div className="w-40 h-40 rounded-[2rem] overflow-hidden border-4 border-white shadow-2xl bg-slate-100">
+              <img src={profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.full_name}`} className="w-full h-full object-cover" />
             </div>
-            <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-3xl">
-              {uploading ? <Loader2 className="animate-spin text-white" /> : <Camera className="text-white w-8 h-8" />}
-              <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={uploading} />
-            </label>
+            {profile.is_superstar && (
+              <div className="absolute -bottom-2 -right-2 bg-amber-500 text-white p-2 rounded-xl shadow-lg">
+                <Crown className="w-5 h-5" />
+              </div>
+            )}
           </div>
 
-          <div className="flex-1 space-y-4 text-center md:text-left">
-            <div>
-              <div className="flex items-center justify-center md:justify-start gap-2 mb-1">
-                <h1 className="text-3xl font-bold text-slate-900">{profile.full_name}</h1>
-                {profile.is_verified && <CheckCircle2 className="w-5 h-5 text-blue-500" />}
-                {profile.is_superstar && <Award className="w-5 h-5 text-amber-500" />}
+          <div className="flex-1 space-y-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <h1 className="text-4xl font-black text-slate-900">{profile.full_name}</h1>
+                  {profile.is_verified && <CheckCircle2 className="w-6 h-6 text-blue-500" />}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {profile.areas_of_activity?.map((area: string) => (
+                    <Badge key={area} className="bg-indigo-50 text-indigo-600 border-none px-3 py-1">{area}</Badge>
+                  )) || <Badge variant="outline">Defina suas áreas</Badge>}
+                </div>
               </div>
-              <div className="flex flex-wrap justify-center md:justify-start gap-4 text-sm text-slate-500">
-                <span className="flex items-center gap-1"><Music className="w-4 h-4" /> {profile.category || 'Estilo Musical'}</span>
-                <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {profile.location || 'Cidade'}</span>
-                <span className="flex items-center gap-1 font-bold text-indigo-600"><DollarSign className="w-4 h-4" /> R$ {Number(profile.price).toLocaleString('pt-BR')}</span>
+              <Button onClick={() => setIsEditing(!isEditing)} variant="outline" className="rounded-xl border-slate-200">
+                {isEditing ? <X className="w-4 h-4 mr-2" /> : <Edit3 className="w-4 h-4 mr-2" />}
+                {isEditing ? "Cancelar" : "Editar"}
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-slate-50 p-4 rounded-2xl text-center">
+                <p className="text-[10px] text-slate-400 font-black uppercase">Trabalhos</p>
+                <p className="text-xl font-black text-slate-900">{profile.work_count || 0}</p>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-2xl text-center">
+                <p className="text-[10px] text-slate-400 font-black uppercase">Avaliação</p>
+                <p className="text-xl font-black text-slate-900">{profile.rating || '5.0'}</p>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-2xl text-center">
+                <p className="text-[10px] text-slate-400 font-black uppercase">Cachê Base</p>
+                <p className="text-xl font-black text-indigo-600">R$ {Number(profile.price).toLocaleString('pt-BR')}</p>
               </div>
             </div>
 
-            <div className="bg-slate-50 p-4 rounded-2xl text-sm text-slate-600 leading-relaxed">
-              <h4 className="font-bold text-slate-900 mb-1 uppercase text-[10px] tracking-wider">Biografia</h4>
-              {profile.bio || "Nenhuma biografia adicionada ainda."}
+            <div className="space-y-2">
+              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Sobre Mim</h4>
+              <p className="text-slate-600 leading-relaxed">{profile.bio || "Conte sua história aqui..."}</p>
             </div>
           </div>
-
-          <Button onClick={() => setIsEditing(!isEditing)} variant={isEditing ? "outline" : "default"} className="bg-indigo-600 rounded-xl">
-            {isEditing ? <X className="w-4 h-4 mr-2" /> : <Edit3 className="w-4 h-4 mr-2" />}
-            {isEditing ? "Cancelar" : "Editar Perfil"}
-          </Button>
         </div>
       </Card>
 
+      {/* Portfólio Section */}
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="text-2xl font-black text-slate-900">Portfólio</h3>
+          <Button variant="ghost" className="text-indigo-600 font-bold"><Plus className="w-4 h-4 mr-2" /> Adicionar Mídia</Button>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="aspect-square bg-slate-100 rounded-3xl border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300">
+              <ImageIcon className="w-8 h-8" />
+            </div>
+          ))}
+        </div>
+      </div>
+
       {isEditing && (
-        <Card className="p-8 border-none shadow-sm bg-white space-y-6 rounded-3xl">
+        <Card className="p-8 border-none shadow-2xl bg-white rounded-[2.5rem] space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label>Nome Artístico</Label>
-              <Input value={formData.full_name} onChange={(e) => setFormData({...formData, full_name: e.target.value})} className="bg-slate-50 border-none h-12 rounded-xl" />
+              <Input value={formData.full_name} onChange={(e) => setFormData({...formData, full_name: e.target.value})} className="h-12 bg-slate-50 border-none rounded-xl" />
             </div>
             <div className="space-y-2">
               <Label>Cachê Base (R$)</Label>
-              <Input type="number" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} className="bg-slate-50 border-none h-12 rounded-xl" />
-            </div>
-            <div className="space-y-2">
-              <Label>Categoria / Estilo</Label>
-              <Input value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="bg-slate-50 border-none h-12 rounded-xl" />
-            </div>
-            <div className="space-y-2">
-              <Label>Localização</Label>
-              <Input value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} className="bg-slate-50 border-none h-12 rounded-xl" />
+              <Input type="number" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} className="h-12 bg-slate-50 border-none rounded-xl" />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label>Biografia</Label>
-              <Textarea value={formData.bio} onChange={(e) => setFormData({...formData, bio: e.target.value})} rows={4} className="bg-slate-50 border-none rounded-xl" />
+              <Label>Áreas de Atuação (separadas por vírgula)</Label>
+              <Input 
+                value={formData.areas_of_activity?.join(', ')} 
+                onChange={(e) => setFormData({...formData, areas_of_activity: e.target.value.split(',').map((s: string) => s.trim())})} 
+                className="h-12 bg-slate-50 border-none rounded-xl" 
+                placeholder="Ex: Violão, Guitarra, Vocal"
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Resumo / Biografia</Label>
+              <Textarea value={formData.bio} onChange={(e) => setFormData({...formData, bio: e.target.value})} rows={5} className="bg-slate-50 border-none rounded-xl" />
             </div>
           </div>
-          <Button onClick={handleSave} className="w-full bg-indigo-600 h-14 font-bold rounded-2xl shadow-lg shadow-indigo-100"><Save className="w-4 h-4 mr-2" /> Salvar Alterações</Button>
+          <Button onClick={handleSave} className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 font-black rounded-2xl shadow-xl shadow-indigo-100">
+            <Save className="w-5 h-5 mr-2" /> Salvar Alterações
+          </Button>
         </Card>
       )}
     </div>

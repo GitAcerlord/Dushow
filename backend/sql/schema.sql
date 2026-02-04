@@ -1,17 +1,41 @@
--- Criar buckets de armazenamento (se não existirem)
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('avatars', 'avatars', true)
-ON CONFLICT (id) DO NOTHING;
+-- Atualização da tabela de perfis
+ALTER TABLE public.profiles 
+ADD COLUMN IF NOT EXISTS plan_tier TEXT DEFAULT 'free',
+ADD COLUMN IF NOT EXISTS areas_of_activity TEXT[], -- Array de especialidades
+ADD COLUMN IF NOT EXISTS referral_code TEXT UNIQUE,
+ADD COLUMN IF NOT EXISTS referred_by UUID REFERENCES auth.users(id),
+ADD COLUMN IF NOT EXISTS is_ambassador BOOLEAN DEFAULT false,
+ADD COLUMN IF NOT EXISTS referral_count INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS portfolio_urls TEXT[],
+ADD COLUMN IF NOT EXISTS work_count INTEGER DEFAULT 0;
 
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('posts', 'posts', true)
-ON CONFLICT (id) DO NOTHING;
+-- Tabela para o Marketplace
+CREATE TABLE IF NOT EXISTS public.marketplace_items (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  seller_id UUID REFERENCES public.profiles(id),
+  title TEXT NOT NULL,
+  description TEXT,
+  price NUMERIC NOT NULL,
+  category TEXT, -- 'Equipamento', 'Instrumento', 'Case', etc.
+  image_url TEXT,
+  status TEXT DEFAULT 'active',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- Políticas para o bucket 'avatars'
-CREATE POLICY "Acesso público para avatares" ON storage.objects FOR SELECT USING (bucket_id = 'avatars');
-CREATE POLICY "Usuários autenticados sobem avatares" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'avatars');
-CREATE POLICY "Usuários atualizam seus avatares" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'avatars');
+-- Habilitar RLS no Marketplace
+ALTER TABLE public.marketplace_items ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Marketplace visível para todos" ON public.marketplace_items FOR SELECT USING (true);
+CREATE POLICY "Usuários gerenciam seus itens" ON public.marketplace_items FOR ALL USING (auth.uid() = seller_id);
 
--- Políticas para o bucket 'posts'
-CREATE POLICY "Acesso público para posts" ON storage.objects FOR SELECT USING (bucket_id = 'posts');
-CREATE POLICY "Usuários autenticados sobem fotos de posts" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'posts');
+-- Função para gerar código de indicação único no cadastro
+CREATE OR REPLACE FUNCTION public.generate_referral_code() 
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.referral_code := upper(substring(md5(random()::text) from 1 for 8));
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER on_profile_created_gen_referral
+  BEFORE INSERT ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.generate_referral_code();
