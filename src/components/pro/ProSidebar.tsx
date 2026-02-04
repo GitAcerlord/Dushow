@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   UserCircle, 
@@ -12,15 +12,19 @@ import {
   Sparkles,
   LogOut,
   Mic2,
-  Star
+  Star,
+  FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
+import { showSuccess } from '@/utils/toast';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Meu Painel', path: '/pro' },
   { icon: UserCircle, label: 'Meu Perfil', path: '/pro/profile' },
   { icon: MessageSquare, label: 'Feed Social', path: '/pro/feed' },
   { icon: Star, label: 'Avaliações', path: '/pro/reviews' },
+  { icon: FileText, label: 'Meus Contratos', path: '/pro/contracts' },
   { icon: Calendar, label: 'Minha Agenda', path: '/pro/agenda' },
   { icon: Trophy, label: 'Conquistas', path: '/pro/achievements' },
   { icon: Sparkles, label: 'Planos & Upgrade', path: '/pro/plans' },
@@ -29,9 +33,16 @@ const menuItems = [
 
 const ProSidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    showSuccess("Sessão encerrada com sucesso.");
+    navigate('/login');
+  };
 
   return (
-    <div className="w-64 bg-white h-screen flex flex-col text-slate-600 border-r fixed left-0 top-0">
+    <div className="w-64 bg-white h-screen flex flex-col text-slate-600 border-r fixed left-0 top-0 z-50 hidden md:flex">
       <div className="p-6 flex items-center gap-3 border-b">
         <div className="bg-indigo-600 p-1.5 rounded-lg">
           <Mic2 className="text-white w-5 h-5" />
@@ -39,7 +50,7 @@ const ProSidebar = () => {
         <span className="text-xl font-bold text-slate-900 tracking-tight">DUSHOW <span className="text-[10px] bg-emerald-500 text-white px-1.5 py-0.5 rounded ml-1 uppercase">Pro</span></span>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {menuItems.map((item) => (
           <Link
             key={item.path}
@@ -61,16 +72,10 @@ const ProSidebar = () => {
       </nav>
 
       <div className="p-4 border-t">
-        <div className="bg-slate-50 rounded-xl p-4 mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-slate-500 uppercase">Nível 12</span>
-            <span className="text-xs font-bold text-indigo-600">1.250 pts</span>
-          </div>
-          <div className="w-full bg-slate-200 rounded-full h-1.5">
-            <div className="bg-indigo-600 h-1.5 rounded-full w-[65%]"></div>
-          </div>
-        </div>
-        <button className="flex items-center gap-3 px-4 py-3 w-full rounded-xl hover:bg-red-50 hover:text-red-600 transition-colors text-slate-400">
+        <button 
+          onClick={handleLogout}
+          className="flex items-center gap-3 px-4 py-3 w-full rounded-xl hover:bg-red-50 hover:text-red-600 transition-colors text-slate-400"
+        >
           <LogOut className="w-5 h-5" />
           <span className="font-medium">Sair</span>
         </button>
