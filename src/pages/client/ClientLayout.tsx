@@ -1,18 +1,37 @@
 "use client";
 
-import React from 'react';
-import { Outlet } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
 import ClientSidebar from '@/components/client/ClientSidebar';
-import { Bell, Search, User } from 'lucide-react';
+import { Bell, Search, Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 const ClientLayout = () => {
+  const [profile, setProfile] = useState<any>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const getProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate('/login');
+        return;
+      }
+      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      setProfile(data);
+    };
+    getProfile();
+  }, [navigate]);
+
+  if (!profile) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600" /></div>;
+
   return (
     <div className="min-h-screen bg-slate-50 flex">
       <ClientSidebar />
       <main className="flex-1 ml-64">
         <header className="h-16 bg-white border-b flex items-center justify-between px-8 sticky top-0 z-40">
           <div className="text-sm font-medium text-slate-500">
-            Próximo Evento: <span className="text-indigo-600 font-bold">Sunset Party (em 12 dias)</span>
+            Bem-vindo, <span className="text-blue-600 font-bold">{profile.full_name}</span>
           </div>
           <div className="flex items-center gap-6">
             <button className="relative text-slate-400 hover:text-blue-600 transition-colors">
@@ -21,11 +40,11 @@ const ClientLayout = () => {
             </button>
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <p className="text-sm font-bold text-slate-900">Clube Privilège</p>
-                <p className="text-xs text-slate-500">Conta Empresarial</p>
+                <p className="text-sm font-bold text-slate-900">{profile.full_name}</p>
+                <p className="text-xs text-slate-500">Conta Contratante</p>
               </div>
-              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                CP
+              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold overflow-hidden border-2 border-blue-50">
+                <img src={profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.full_name}`} alt="Avatar" className="w-full h-full object-cover" />
               </div>
             </div>
           </div>
