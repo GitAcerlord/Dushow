@@ -17,7 +17,7 @@ serve(async (req) => {
 
     const { contractId, userId, role } = await req.json()
     
-    // 1. Buscar dados do contrato para gerar o Hash de Integridade
+    // 1. Buscar dados do contrato
     const { data: contract, error: fetchError } = await supabaseClient
       .from('contracts')
       .select('*')
@@ -26,25 +26,27 @@ serve(async (req) => {
 
     if (fetchError || !contract) throw new Error("Contrato não encontrado")
 
-    // 2. Capturar metadados do assinante (Real)
+    // 2. Coleta de Evidências Digitais
     const metadata = {
       ip: req.headers.get('x-real-ip') || '127.0.0.1',
       userAgent: req.headers.get('user-agent'),
       timestamp: new Date().toISOString(),
-      userId: userId
+      method: 'DUSHOW_SECURE_SIGN',
+      auth_id: userId
     }
 
-    // 3. Gerar Hash do Documento (SHA-256 simplificado para o exemplo)
-    const contentToHash = `${contract.event_name}-${contract.value}-${contract.event_date}`;
+    // 3. Geração do Hash de Integridade (Imutabilidade)
+    // Concatenamos os dados sensíveis do contrato para garantir que se mudarem, o hash quebra.
+    const rawContent = `${contract.id}-${contract.event_name}-${contract.value}-${contract.event_date}`;
     const encoder = new TextEncoder();
-    const data = encoder.encode(contentToHash);
+    const data = encoder.encode(rawContent);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-    // 4. Atualizar Contrato
+    // 4. Registro da Assinatura
     const updateData: any = {
-      document_hash: hashHex
+      signature_hash: hashHex // Atualiza o hash global do documento
     }
 
     if (role === 'CLIENT') {
@@ -55,6 +57,11 @@ serve(async (req) => {
       updateData.signed_by_pro = true;
       updateData.signed_at_pro = metadata.timestamp;
       updateData.pro_signature_metadata = metadata;
+    }
+
+    // Se ambos assinaram, o contrato passa para PAID (ou CONFIRMED)
+    if ((role === 'CLIENT' && contract.signed_by_pro) || (role === 'PRO' && contract.signed_by_client)) {
+      updateData.status = 'PAID';
     }
 
     const { error: updateError } = await supabaseClient
