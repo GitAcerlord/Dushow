@@ -3,21 +3,14 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  LayoutDashboard, 
-  UserCircle, 
-  MessageSquare, 
-  Calendar,
-  Trophy,
-  CreditCard,
-  Sparkles,
-  LogOut,
-  Mic2,
-  Star,
-  FileText
+  LayoutDashboard, UserCircle, MessageSquare, Calendar,
+  Trophy, CreditCard, Sparkles, LogOut, Mic2, Star, FileText, Menu
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { showSuccess } from '@/utils/toast';
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Meu Painel', path: '/pro' },
@@ -31,18 +24,18 @@ const menuItems = [
   { icon: CreditCard, label: 'Financeiro', path: '/pro/finance' },
 ];
 
-const ProSidebar = () => {
+const SidebarContent = ({ onClose }: { onClose?: () => void }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    showSuccess("Sessão encerrada com sucesso.");
+    showSuccess("Sessão encerrada.");
     navigate('/login');
   };
 
   return (
-    <div className="w-64 bg-white h-screen flex flex-col text-slate-600 border-r fixed left-0 top-0 z-50 hidden md:flex">
+    <div className="flex flex-col h-full bg-white">
       <div className="p-6 flex items-center gap-3 border-b">
         <div className="bg-indigo-600 p-1.5 rounded-lg">
           <Mic2 className="text-white w-5 h-5" />
@@ -55,6 +48,7 @@ const ProSidebar = () => {
           <Link
             key={item.path}
             to={item.path}
+            onClick={onClose}
             className={cn(
               "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
               location.pathname === item.path 
@@ -81,6 +75,31 @@ const ProSidebar = () => {
         </button>
       </div>
     </div>
+  );
+};
+
+const ProSidebar = () => {
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex w-64 bg-white h-screen border-r fixed left-0 top-0 z-50 flex-col">
+        <SidebarContent />
+      </aside>
+
+      {/* Mobile Sidebar */}
+      <div className="md:hidden fixed top-4 left-4 z-[60]">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="icon" className="bg-white shadow-md">
+              <Menu className="w-5 h-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 w-72">
+            <SidebarContent />
+          </SheetContent>
+        </Sheet>
+      </div>
+    </>
   );
 };
 

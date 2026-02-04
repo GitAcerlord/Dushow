@@ -27,6 +27,7 @@ import ProMessages from "./pages/pro/Messages";
 import ProAchievements from "./pages/pro/Achievements";
 import ProReviews from "./pages/pro/Reviews";
 import ProContracts from "./pages/pro/Contracts";
+import ContractDetails from "./pages/pro/ContractDetails";
 import ClientLayout from "./pages/client/ClientLayout";
 import Discovery from "./pages/client/Discovery";
 import ClientMessages from "./pages/client/Messages";
@@ -69,6 +70,7 @@ const App = () => (
             <Route path="reviews" element={<ProReviews />} />
             <Route path="messages" element={<ProMessages />} />
             <Route path="contracts" element={<ProContracts />} />
+            <Route path="contracts/:id" element={<ContractDetails />} />
             <Route path="agenda" element={<ProAgenda />} />
             <Route path="achievements" element={<ProAchievements />} />
             <Route path="plans" element={<ProPlans />} />

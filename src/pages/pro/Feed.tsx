@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Heart, MessageCircle, Trash2, Loader2, Camera, Send } from "lucide-react";
+import { Loader2, Send, Zap } from "lucide-react";
 import { supabase } from '@/lib/supabase';
 import { showSuccess, showError } from "@/utils/toast";
 
@@ -31,20 +31,13 @@ const Feed = () => {
 
       const { data: postsData, error } = await supabase
         .from('posts')
-        .select(`
-          *,
-          profiles:author_id (
-            full_name,
-            avatar_url
-          )
-        `)
+        .select(`*, profiles:author_id (full_name, avatar_url)`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       setPosts(postsData || []);
     } catch (error: any) {
-      console.error("Erro no Feed:", error);
-      showError("Erro ao carregar o feed. Verifique a conexão.");
+      showError("Erro ao carregar o feed.");
     } finally {
       setLoading(false);
     }
@@ -54,13 +47,22 @@ const Feed = () => {
     if (!postContent.trim() || !userProfile) return;
     setIsPosting(true);
     try {
-      const { error } = await supabase.from('posts').insert({
+      // 1. Criar o Post
+      const { error: postError } = await supabase.from('posts').insert({
         author_id: userProfile.id,
         content: postContent
       });
+      if (postError) throw postError;
 
-      if (error) throw error;
-      showSuccess("Post publicado com sucesso!");
+      // 2. Conceder 5 pontos de XP
+      const { error: xpError } = await supabase
+        .from('profiles')
+        .update({ points: (userProfile.points || 0) + 5 })
+        .eq('id', userProfile.id);
+      
+      if (xpError) throw xpError;
+
+      showSuccess("Post publicado! +5 XP conquistados.");
       setPostContent("");
       fetchData();
     } catch (error: any) {
@@ -84,7 +86,10 @@ const Feed = () => {
               onChange={(e) => setPostContent(e.target.value)}
               className="border-none bg-slate-50 rounded-xl focus-visible:ring-indigo-500 min-h-[100px]"
             />
-            <div className="flex justify-end">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-1 text-amber-600 text-xs font-bold">
+                <Zap className="w-3 h-3" /> Ganhe 5 XP ao postar
+              </div>
               <Button onClick={handlePost} disabled={isPosting || !postContent.trim()} className="bg-indigo-600 rounded-xl px-6">
                 {isPosting ? <Loader2 className="animate-spin" /> : "Publicar"}
               </Button>
