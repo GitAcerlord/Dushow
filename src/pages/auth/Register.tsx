@@ -37,6 +37,8 @@ const Register = () => {
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
     try {
+      console.log("Iniciando cadastro para:", data.email);
+      
       const { error, data: authData } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -48,12 +50,19 @@ const Register = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Erro Supabase Auth:", error);
+        throw error;
+      }
 
       showSuccess("Conta criada! Verifique seu e-mail para confirmar o cadastro.");
       navigate('/login');
     } catch (error: any) {
-      showError(error.message || "Erro ao criar conta. Tente novamente.");
+      console.error("Erro completo:", error);
+      const message = error.message === "Failed to fetch" 
+        ? "Erro de conexão: Verifique se as chaves do Supabase estão corretas e clique em Rebuild."
+        : error.message || "Erro ao criar conta.";
+      showError(message);
     } finally {
       setIsLoading(false);
     }

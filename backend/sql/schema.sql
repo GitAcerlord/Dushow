@@ -1,41 +1,21 @@
--- Tabela de Perfis (Extensão do Auth.Users)
-CREATE TABLE profiles (
-  id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
-  full_name TEXT,
-  role TEXT CHECK (role IN ('PRO', 'CLIENT', 'ADMIN')),
-  avatar_url TEXT,
-  bio TEXT,
-  category TEXT,
-  location TEXT,
-  price DECIMAL(10,2) DEFAULT 0,
-  rating DECIMAL(3,2) DEFAULT 5.0,
-  reviews_count INTEGER DEFAULT 0,
-  is_verified BOOLEAN DEFAULT FALSE,
-  is_superstar BOOLEAN DEFAULT FALSE,
-  points INTEGER DEFAULT 0,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
-);
+-- (Mantenha as tabelas anteriores se já as criou, ou execute tudo de novo)
 
--- Tabela de Contratos
-CREATE TABLE contracts (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  client_id UUID REFERENCES profiles(id),
-  pro_id UUID REFERENCES profiles(id),
-  event_name TEXT,
-  event_date TIMESTAMP WITH TIME ZONE,
-  event_location TEXT,
-  value DECIMAL(10,2),
-  status TEXT CHECK (status IN ('PENDING', 'PAID', 'COMPLETED', 'CANCELED')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
-);
+-- Função para criar o perfil automaticamente
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, role)
+  VALUES (
+    NEW.id,
+    NEW.raw_user_meta_data->>'full_name',
+    COALESCE(NEW.raw_user_meta_data->>'role', 'PRO')
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Habilitar Row Level Security (RLS)
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE contracts ENABLE ROW LEVEL SECURITY;
-
--- Políticas de Acesso (Exemplo: Todos podem ver perfis PRO)
-CREATE POLICY "Public profiles are viewable by everyone" ON profiles
-  FOR SELECT USING (true);
-
-CREATE POLICY "Users can update own profile" ON profiles
-  FOR UPDATE USING (auth.uid() = id);
+-- Trigger que dispara a função após um insert em auth.users
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
