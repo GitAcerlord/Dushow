@@ -3,9 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Check, Star, Zap, Shield, ArrowRight, Loader2 } from "lucide-react";
 import { supabase } from '@/lib/supabase';
 import { showSuccess, showError } from "@/utils/toast";
+import { cn } from "@/lib/utils";
 
 const plans = [
   { name: "Free", price: "R$ 0", features: ["Perfil básico", "Comissão de 20%"], id: 'free', value: 0 },
@@ -29,11 +31,11 @@ const ProPlans = () => {
     }
   };
 
-  const handleUpgrade = async (plan) => {
+  const handleUpgrade = async (plan: any) => {
     setLoading(true);
     try {
       const updates: any = {
-        role: 'PRO' // Garante que o papel está correto
+        role: 'PRO'
       };
 
       if (plan.id === 'pro') {
