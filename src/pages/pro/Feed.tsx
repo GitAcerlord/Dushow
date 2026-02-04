@@ -5,9 +5,15 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Send, Zap } from "lucide-react";
-import { supabase } from '@/lib/supabase';
+import { Loader2, Send, Zap, Trash2, MoreHorizontal } from "lucide-react";
+import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from "@/utils/toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Feed = () => {
   const [posts, setPosts] = useState<any[]>([]);
@@ -47,14 +53,12 @@ const Feed = () => {
     if (!postContent.trim() || !userProfile) return;
     setIsPosting(true);
     try {
-      // 1. Criar o Post
       const { error: postError } = await supabase.from('posts').insert({
         author_id: userProfile.id,
         content: postContent
       });
       if (postError) throw postError;
 
-      // 2. Conceder 5 pontos de XP
       const { error: xpError } = await supabase
         .from('profiles')
         .update({ xp_total: (userProfile.xp_total || 0) + 5 })
@@ -69,6 +73,17 @@ const Feed = () => {
       showError(error.message);
     } finally {
       setIsPosting(false);
+    }
+  };
+
+  const handleDelete = async (postId: string) => {
+    try {
+      const { error } = await supabase.from('posts').delete().eq('id', postId);
+      if (error) throw error;
+      showSuccess("Post removido.");
+      setPosts(posts.filter(p => p.id !== postId));
+    } catch (error: any) {
+      showError("Erro ao excluir post.");
     }
   };
 
@@ -100,12 +115,31 @@ const Feed = () => {
 
       {posts.map((post) => (
         <Card key={post.id} className="border-none shadow-sm bg-white overflow-hidden rounded-2xl">
-          <div className="p-4 flex items-center gap-3">
-            <Avatar><AvatarImage src={post.profiles?.avatar_url} /></Avatar>
-            <div>
-              <h4 className="font-bold text-sm">{post.profiles?.full_name}</h4>
-              <p className="text-[10px] text-slate-400">{new Date(post.created_at).toLocaleString()}</p>
+          <div className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Avatar><AvatarImage src={post.profiles?.avatar_url} /></Avatar>
+              <div>
+                <h4 className="font-bold text-sm">{post.profiles?.full_name}</h4>
+                <p className="text-[10px] text-slate-400">{new Date(post.created_at).toLocaleString()}</p>
+              </div>
             </div>
+            {userProfile?.id === post.author_id && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem 
+                    className="text-red-600 gap-2" 
+                    onClick={() => handleDelete(post.id)}
+                  >
+                    <Trash2 className="w-4 h-4" /> Excluir Post
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
           <div className="px-4 pb-4">
             <p className="text-slate-700 text-sm whitespace-pre-wrap">{post.content}</p>

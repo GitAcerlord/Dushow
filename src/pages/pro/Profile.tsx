@@ -8,9 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { 
-  Star, MapPin, Music, Edit3, Camera, CheckCircle2, Award, Save, X, Loader2, DollarSign, Briefcase, Image as ImageIcon
+  Star, MapPin, Music, Edit3, Camera, CheckCircle2, Award, Save, X, Loader2, DollarSign, Briefcase, Image as ImageIcon, Crown, Plus
 } from "lucide-react";
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 
 const ProProfile = () => {
@@ -46,6 +46,7 @@ const ProProfile = () => {
   };
 
   if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin" /></div>;
+  if (!profile) return <div className="p-12 text-center">Perfil não encontrado.</div>;
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-8">
@@ -104,7 +105,6 @@ const ProProfile = () => {
         </div>
       </Card>
 
-      {/* Portfólio Section */}
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <h3 className="text-2xl font-black text-slate-900">Portfólio</h3>
