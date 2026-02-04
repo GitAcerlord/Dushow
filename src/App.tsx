@@ -7,6 +7,8 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
+import About from "./pages/About";
+import Marketplace from "./pages/Marketplace";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminUsers from "./pages/admin/Users";
@@ -30,6 +32,7 @@ import Discovery from "./pages/client/Discovery";
 import ClientMessages from "./pages/client/Messages";
 import Checkout from "./pages/client/Checkout";
 
+const Academy = () => <div className="p-20 text-center"><h1>DUSHOW Academy - Em Breve para membros Pro e Elite</h1></div>;
 const ClientDashboard = () => <div className="p-8"><h1>Painel Contratante</h1></div>;
 
 const queryClient = new QueryClient();
@@ -44,6 +47,9 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/marketplace" element={<Marketplace />} />
+          <Route path="/academy" element={<Academy />} />
           
           {/* Painel Administrativo */}
           <Route path="/admin" element={<AdminLayout />}>
