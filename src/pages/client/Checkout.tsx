@@ -7,36 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { 
-  ShieldCheck, 
-  CreditCard, 
-  QrCode, 
-  FileText, 
-  Calendar, 
-  MapPin, 
-  ArrowLeft,
-  Lock,
-  Info,
-  CheckCircle2,
-  Loader2
-} from "lucide-react";
+import { ShieldCheck, CreditCard, QrCode, ArrowLeft, CheckCircle2, Loader2, Lock } from "lucide-react";
 import { supabase } from '@/lib/supabase';
 import { showSuccess, showError } from "@/utils/toast";
 
 const Checkout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [paymentMethod, setPaymentMethod] = useState("card");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [user, setUser] = useState<any>(null);
 
-  // Dados do artista passados via navegação ou mockados para teste
-  const artist = location.state?.artist || {
-    id: 'mock-id',
-    full_name: "DJ Alok",
-    price: 15000.00
-  };
+  const artist = location.state?.artist || { id: 'mock', full_name: "Artista Exemplo", price: 500 };
 
   useEffect(() => {
     const getUser = async () => {
@@ -46,37 +28,34 @@ const Checkout = () => {
     getUser();
   }, []);
 
-  const handlePayment = async () => {
+  const handleStripePayment = async () => {
     if (!user) {
-      showError("Você precisa estar logado para contratar.");
+      showError("Faça login para contratar.");
       return;
     }
 
     setIsProcessing(true);
-    
     try {
-      // 1. Simula processamento ASAAS
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Simulação de chamada para Stripe API
+      await new Promise(resolve => setTimeout(resolve, 2500));
 
-      // 2. Salva o contrato no banco
-      const { error } = await supabase
-        .from('contracts')
-        .insert({
-          client_id: user.id,
-          pro_id: artist.id,
-          event_name: `Show com ${artist.full_name}`,
-          event_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 dias a frente
-          event_location: "Local a definir",
-          value: artist.price,
-          status: 'PAID'
-        });
+      // Criar contrato no banco após "sucesso" no Stripe
+      const { error } = await supabase.from('contracts').insert({
+        client_id: user.id,
+        pro_id: artist.id,
+        event_name: `Show com ${artist.full_name}`,
+        event_date: new Date(Date.now() + 604800000).toISOString(),
+        value: artist.price,
+        status: 'PAID',
+        payment_method: 'STRIPE_CARD'
+      });
 
       if (error) throw error;
 
       setIsSuccess(true);
-      showSuccess("Pagamento confirmado e contrato gerado!");
+      showSuccess("Pagamento processado via Stripe!");
     } catch (error: any) {
-      showError(error.message || "Erro ao processar pagamento.");
+      showError("Erro no processamento do pagamento.");
     } finally {
       setIsProcessing(false);
     }
@@ -84,17 +63,15 @@ const Checkout = () => {
 
   if (isSuccess) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center p-8">
-        <Card className="max-w-md w-full p-12 text-center space-y-6 border-none shadow-2xl bg-white rounded-3xl">
-          <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle2 className="w-12 h-12" />
+      <div className="min-h-screen flex items-center justify-center p-8 bg-slate-50">
+        <Card className="max-w-md w-full p-12 text-center space-y-6 border-none shadow-2xl bg-white rounded-[2.5rem]">
+          <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-10 h-10" />
           </div>
-          <h2 className="text-3xl font-black text-slate-900">Show Confirmado!</h2>
-          <p className="text-slate-500 leading-relaxed">
-            O contrato foi gerado com sucesso. O artista já pode visualizar o evento na agenda dele.
-          </p>
+          <h2 className="text-3xl font-black text-slate-900">Sucesso!</h2>
+          <p className="text-slate-500">Seu pagamento foi confirmado pelo Stripe e o contrato já está disponível.</p>
           <Button className="w-full bg-indigo-600 h-12 rounded-xl font-bold" onClick={() => navigate('/client/discovery')}>
-            Voltar para a Busca
+            Voltar para Início
           </Button>
         </Card>
       </div>
@@ -109,59 +86,49 @@ const Checkout = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
         <div className="lg:col-span-2 space-y-8">
-          <h1 className="text-4xl font-black text-slate-900">Finalizar Contratação</h1>
+          <h1 className="text-4xl font-black text-slate-900">Pagamento Seguro</h1>
           
-          <Card className="p-8 border-none shadow-sm bg-white rounded-3xl">
-            <RadioGroup defaultValue="card" onValueChange={setPaymentMethod} className="grid grid-cols-3 gap-4 mb-8">
-              <Label htmlFor="card" className={`p-6 border-2 rounded-2xl cursor-pointer text-center ${paymentMethod === 'card' ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100'}`}>
-                <RadioGroupItem value="card" id="card" className="sr-only" />
-                <CreditCard className="w-8 h-8 mx-auto mb-2" />
-                <span className="text-xs font-bold uppercase">Cartão</span>
-              </Label>
-              <Label htmlFor="pix" className={`p-6 border-2 rounded-2xl cursor-pointer text-center ${paymentMethod === 'pix' ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100'}`}>
-                <RadioGroupItem value="pix" id="pix" className="sr-only" />
-                <QrCode className="w-8 h-8 mx-auto mb-2" />
-                <span className="text-xs font-bold uppercase">PIX</span>
-              </Label>
-              <Label htmlFor="boleto" className={`p-6 border-2 rounded-2xl cursor-pointer text-center ${paymentMethod === 'boleto' ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100'}`}>
-                <RadioGroupItem value="boleto" id="boleto" className="sr-only" />
-                <FileText className="w-8 h-8 mx-auto mb-2" />
-                <span className="text-xs font-bold uppercase">Boleto</span>
-              </Label>
-            </RadioGroup>
+          <Card className="p-8 border-none shadow-sm bg-white rounded-[2rem] space-y-6">
+            <div className="flex items-center gap-3 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+              <Lock className="text-indigo-600 w-5 h-5" />
+              <p className="text-sm text-indigo-900 font-medium">Seus dados são processados de forma criptografada pelo **Stripe**.</p>
+            </div>
 
             <div className="space-y-4">
-              <Input placeholder="Número do Cartão" className="h-12 bg-slate-50 border-none" />
+              <div className="space-y-2">
+                <Label>Número do Cartão</Label>
+                <Input placeholder="0000 0000 0000 0000" className="h-12 bg-slate-50 border-none rounded-xl" />
+              </div>
               <div className="grid grid-cols-2 gap-4">
-                <Input placeholder="Validade" className="h-12 bg-slate-50 border-none" />
-                <Input placeholder="CVV" className="h-12 bg-slate-50 border-none" />
+                <div className="space-y-2">
+                  <Label>Validade</Label>
+                  <Input placeholder="MM/AA" className="h-12 bg-slate-50 border-none rounded-xl" />
+                </div>
+                <div className="space-y-2">
+                  <Label>CVC</Label>
+                  <Input placeholder="123" className="h-12 bg-slate-50 border-none rounded-xl" />
+                </div>
               </div>
             </div>
           </Card>
         </div>
 
-        <Card className="p-8 border-none shadow-xl bg-white rounded-3xl h-fit">
-          <h3 className="text-xl font-bold mb-6">Resumo</h3>
-          <div className="space-y-4 mb-8">
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-500">Artista</span>
-              <span className="font-bold">{artist.full_name}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-500">Cachê</span>
-              <span className="font-bold">R$ {Number(artist.price).toLocaleString('pt-BR')}</span>
-            </div>
+        <Card className="p-8 border-none shadow-xl bg-white rounded-[2rem] h-fit space-y-6">
+          <h3 className="text-xl font-bold">Resumo do Show</h3>
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between"><span className="text-slate-500">Artista</span><span className="font-bold">{artist.full_name}</span></div>
+            <div className="flex justify-between"><span className="text-slate-500">Cachê</span><span className="font-bold">R$ {Number(artist.price).toLocaleString('pt-BR')}</span></div>
             <div className="pt-4 border-t flex justify-between items-end">
-              <span className="text-xs font-bold uppercase text-slate-400">Total</span>
+              <span className="text-xs font-bold text-slate-400 uppercase">Total</span>
               <span className="text-2xl font-black text-indigo-600">R$ {Number(artist.price).toLocaleString('pt-BR')}</span>
             </div>
           </div>
           <Button 
-            onClick={handlePayment} 
+            onClick={handleStripePayment} 
             disabled={isProcessing}
-            className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 font-black rounded-xl"
+            className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 font-black rounded-xl shadow-lg shadow-indigo-100"
           >
-            {isProcessing ? <Loader2 className="animate-spin" /> : "Confirmar Pagamento"}
+            {isProcessing ? <Loader2 className="animate-spin" /> : "Pagar com Stripe"}
           </Button>
         </Card>
       </div>
