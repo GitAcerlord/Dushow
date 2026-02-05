@@ -27,9 +27,19 @@ const ProMessages = () => {
       .select('client:profiles!contracts_client_id_fkey(id, full_name, avatar_url)')
       .eq('pro_id', user.id);
 
-    // Remove duplicatas
-    const uniqueClients = Array.from(new Set(contracts?.map(c => c.client.id)))
-      .map(id => contracts?.find(c => c.client.id === id)?.client);
+    // Remove duplicatas tratando o retorno como array ou objeto único
+    const uniqueClients = Array.from(new Set(contracts?.map(c => {
+      const client = Array.isArray(c.client) ? c.client[0] : c.client;
+      return client?.id;
+    })))
+    .filter(Boolean)
+    .map(id => {
+      const contract = contracts?.find(c => {
+        const client = Array.isArray(c.client) ? c.client[0] : c.client;
+        return client?.id === id;
+      });
+      return Array.isArray(contract?.client) ? contract?.client[0] : contract?.client;
+    });
 
     setContacts(uniqueClients || []);
     if (uniqueClients.length > 0) setSelectedContact(uniqueClients[0]);
@@ -62,7 +72,7 @@ const ProMessages = () => {
               >
                 <Avatar>
                   <AvatarImage src={contact.avatar_url} />
-                  <AvatarFallback>{contact.full_name[0]}</AvatarFallback>
+                  <AvatarFallback>{contact.full_name?.[0]}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-bold text-slate-900 truncate">{contact.full_name}</h4>

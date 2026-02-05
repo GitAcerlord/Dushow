@@ -7,12 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { 
-  FileText, Loader2, ArrowLeft, Fingerprint, CheckCircle2, DollarSign, MessageSquare, Save
+  FileText, Loader2, ArrowLeft, DollarSign, MessageSquare
 } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from "@/utils/toast";
-import { cn } from "@/lib/utils";
 
 const ContractDetails = () => {
   const { id } = useParams();
@@ -66,7 +66,7 @@ const ContractDetails = () => {
         .update({ 
           value: parseFloat(newPrice),
           negotiation_reason: reason,
-          status: 'PENDING', // Volta para pendente para nova aprovação
+          status: 'PENDING',
           signed_by_client: false,
           signed_by_pro: false
         })

@@ -3,9 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import ChatWindow from '@/components/chat/ChatWindow';
 import { Card } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/avatar";
 import { Loader2, MessageSquare } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from "@/lib/utils";
 
 const ClientMessages = () => {
   const [contacts, setContacts] = useState<any[]>([]);
@@ -26,9 +27,19 @@ const ClientMessages = () => {
       .select('pro:profiles!contracts_pro_id_fkey(id, full_name, avatar_url)')
       .eq('client_id', user.id);
 
-    // Remove duplicatas
-    const uniquePros = Array.from(new Set(contracts?.map(c => c.pro.id)))
-      .map(id => contracts?.find(c => c.pro.id === id)?.pro);
+    // Remove duplicatas tratando o retorno como array ou objeto único
+    const uniquePros = Array.from(new Set(contracts?.map(c => {
+      const pro = Array.isArray(c.pro) ? c.pro[0] : c.pro;
+      return pro?.id;
+    })))
+    .filter(Boolean)
+    .map(id => {
+      const contract = contracts?.find(c => {
+        const pro = Array.isArray(c.pro) ? c.pro[0] : c.pro;
+        return pro?.id === id;
+      });
+      return Array.isArray(contract?.pro) ? contract?.pro[0] : contract?.pro;
+    });
 
     setContacts(uniquePros || []);
     if (uniquePros.length > 0) setSelectedContact(uniquePros[0]);
@@ -61,7 +72,7 @@ const ClientMessages = () => {
               >
                 <Avatar>
                   <AvatarImage src={contact.avatar_url} />
-                  <AvatarFallback>{contact.full_name[0]}</AvatarFallback>
+                  <AvatarFallback>{contact.full_name?.[0]}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-bold text-slate-900 truncate">{contact.full_name}</h4>
