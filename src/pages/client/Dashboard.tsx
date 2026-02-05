@@ -3,12 +3,14 @@
 import React, { useEffect, useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { 
   Calendar, DollarSign, Users, ArrowRight, 
   Clock, CheckCircle2, Loader2, Search
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from "@/lib/utils";
 
 const ClientDashboard = () => {
   const [stats, setStats] = useState<any>(null);
@@ -30,7 +32,7 @@ const ClientDashboard = () => {
       .order('created_at', { ascending: false });
 
     if (contracts) {
-      const totalSpent = contracts.filter(c => c.status === 'PAID' || c.status === 'RELEASED')
+      const totalSpent = contracts.filter(c => c.status === 'PAID' || c.status === 'COMPLETED')
         .reduce((acc, curr) => acc + Number(curr.value), 0);
       
       setStats({
@@ -63,7 +65,7 @@ const ClientDashboard = () => {
             <div className="p-3 bg-blue-50 rounded-xl"><DollarSign className="w-6 h-6 text-blue-600" /></div>
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase">Total Investido</p>
-              <h3 className="text-2xl font-black text-slate-900">R$ {stats.totalSpent.toLocaleString('pt-BR')}</h3>
+              <h3 className="text-2xl font-black text-slate-900">R$ {stats?.totalSpent.toLocaleString('pt-BR')}</h3>
             </div>
           </div>
         </Card>
@@ -72,7 +74,7 @@ const ClientDashboard = () => {
             <div className="p-3 bg-emerald-50 rounded-xl"><Calendar className="w-6 h-6 text-emerald-600" /></div>
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase">Eventos Ativos</p>
-              <h3 className="text-2xl font-black text-slate-900">{stats.activeEvents}</h3>
+              <h3 className="text-2xl font-black text-slate-900">{stats?.activeEvents}</h3>
             </div>
           </div>
         </Card>
@@ -81,7 +83,7 @@ const ClientDashboard = () => {
             <div className="p-3 bg-amber-50 rounded-xl"><Clock className="w-6 h-6 text-amber-600" /></div>
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase">Propostas Pendentes</p>
-              <h3 className="text-2xl font-black text-slate-900">{stats.pendingProposals}</h3>
+              <h3 className="text-2xl font-black text-slate-900">{stats?.pendingProposals}</h3>
             </div>
           </div>
         </Card>
