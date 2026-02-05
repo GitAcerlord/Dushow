@@ -36,6 +36,7 @@ const PlanCheckout = () => {
       // Simulação de processamento de gateway (Stripe/Asaas)
       await new Promise(resolve => setTimeout(resolve, 2000));
 
+      // ATUALIZAÇÃO REAL NO BANCO
       const { error } = await supabase.from('profiles').update({ 
         plan_tier: plan.id,
         is_verified: ['premium', 'elite'].includes(plan.id),

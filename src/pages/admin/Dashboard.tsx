@@ -6,6 +6,7 @@ import {
   TrendingUp, Users, DollarSign, Activity, Loader2, ArrowUpRight, ShieldCheck
 } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
+import { Badge } from "@/components/ui/badge";
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState<any>(null);

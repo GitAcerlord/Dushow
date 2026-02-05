@@ -59,6 +59,7 @@ const Feed = () => {
       });
       if (postError) throw postError;
 
+      // Gamificação: +5 XP por post
       const { error: xpError } = await supabase
         .from('profiles')
         .update({ xp_total: (userProfile.xp_total || 0) + 5 })

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { DollarSign, Calendar, Star, TrendingUp, Award, Loader2 } from "lucide-react";
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 const ProDashboard = () => {
   const [stats, setStats] = useState<any>(null);
@@ -22,7 +22,7 @@ const ProDashboard = () => {
       // Busca perfil para pontos e selos
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       
-      // Busca contratos para ganhos e contagem
+      // Busca contratos para ganhos e contagem (LEDGER REAL)
       const { data: contracts } = await supabase.from('contracts').select('value, status').eq('pro_id', user.id);
 
       const totalEarnings = contracts?.filter(c => c.status === 'PAID' || c.status === 'COMPLETED')
@@ -49,7 +49,7 @@ const ProDashboard = () => {
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Olá, {stats.profile.full_name}! 👋</h1>
-          <p className="text-slate-500 mt-1">Seu painel está atualizado com os dados do banco.</p>
+          <p className="text-slate-500 mt-1">Seu painel está atualizado com os dados reais do banco.</p>
         </div>
         <div className="flex gap-2">
           {stats.profile.is_superstar && <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-full text-sm font-bold border border-amber-100"><Award className="w-4 h-4" /> Superstar</div>}
