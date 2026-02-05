@@ -26,20 +26,20 @@ const ClientLayout = () => {
   if (!profile) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600" /></div>;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
       <ClientSidebar />
-      <main className="flex-1 ml-64">
-        <header className="h-16 bg-white border-b flex items-center justify-between px-8 sticky top-0 z-40">
+      <main className="flex-1 md:ml-64 transition-all duration-300">
+        <header className="h-16 bg-white border-b flex items-center justify-between px-4 md:px-8 sticky top-0 z-40">
           <div className="text-sm font-medium text-slate-500">
             Bem-vindo, <span className="text-blue-600 font-bold">{profile.full_name}</span>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3 md:gap-6">
             <button className="relative text-slate-400 hover:text-blue-600 transition-colors">
               <Bell className="w-5 h-5" />
               <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
             <div className="flex items-center gap-3">
-              <div className="text-right">
+              <div className="text-right hidden sm:block">
                 <p className="text-sm font-bold text-slate-900">{profile.full_name}</p>
                 <p className="text-xs text-slate-500">Conta Contratante</p>
               </div>

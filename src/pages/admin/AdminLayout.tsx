@@ -6,9 +6,9 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 
 const AdminLayout = () => {
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
       <AdminSidebar />
-      <main className="flex-1 ml-64">
+      <main className="flex-1 md:ml-64 transition-all duration-300">
         <header className="h-16 bg-white border-b flex items-center justify-end px-8 sticky top-0 z-40">
           <div className="flex items-center gap-4">
             <div className="text-right">

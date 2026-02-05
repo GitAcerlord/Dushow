@@ -35,6 +35,7 @@ import ClientMessages from "./pages/client/Messages";
 import Checkout from "./pages/client/Checkout";
 import ClientEvents from "./pages/client/Events";
 import ClientPayments from "./pages/client/Payments";
+import Favorites from "./pages/client/Favorites";
 
 const Academy = () => <div className="p-20 text-center"><h1>DUSHOW Academy - Em Breve para membros Pro e Elite</h1></div>;
 
@@ -86,7 +87,7 @@ const App = () => (
             <Route path="checkout" element={<Checkout />} />
             <Route path="events" element={<ClientEvents />} />
             <Route path="messages" element={<ClientMessages />} />
-            <Route path="favorites" element={<div className="p-8"><h1>Favoritos (Em breve)</h1></div>} />
+            <Route path="favorites" element={<Favorites />} />
             <Route path="payments" element={<ClientPayments />} />
           </Route>
 

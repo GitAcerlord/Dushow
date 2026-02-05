@@ -8,38 +8,60 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  Search, Star, MapPin, Filter, ShieldCheck, Award, Music, Loader2, Heart, PartyPopper, Cake, Baby
+  Search, Star, MapPin, Filter, ShieldCheck, Award, Music, Loader2, Heart, PartyPopper, Cake, Baby, Crown
 } from "lucide-react";
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
+import { showSuccess, showError } from '@/utils/toast';
 
 const Discovery = () => {
   const navigate = useNavigate();
   const [artists, setArtists] = useState<any[]>([]);
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
 
   useEffect(() => {
     fetchArtists();
+    fetchUserFavorites();
   }, [activeTab]);
+
+  const fetchUserFavorites = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase.from('favorites').select('artist_id').eq('user_id', user.id);
+      setFavorites(data?.map(f => f.artist_id) || []);
+    }
+  };
 
   const fetchArtists = async () => {
     setLoading(true);
     try {
       let query = supabase.from('profiles').select('*').eq('role', 'PRO');
-      
       if (activeTab !== 'all') {
-        query = query.ilike('bio', `%${activeTab}%`); // Simulação de filtro por especialidade na bio
+        query = query.ilike('bio', `%${activeTab}%`);
       }
-
       const { data, error } = await query.order('is_superstar', { ascending: false });
-
       if (error) throw error;
       setArtists(data || []);
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleFavorite = async (artistId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    if (favorites.includes(artistId)) {
+      await supabase.from('favorites').delete().eq('user_id', user.id).eq('artist_id', artistId);
+      setFavorites(favorites.filter(id => id !== artistId));
+    } else {
+      await supabase.from('favorites').insert({ user_id: user.id, artist_id: artistId });
+      setFavorites([...favorites, artistId]);
+      showSuccess("Adicionado aos favoritos!");
     }
   };
 
@@ -65,26 +87,14 @@ const Discovery = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Button variant="outline" className="h-12 rounded-xl gap-2 border-slate-200">
-            <Filter className="w-4 h-4" /> Filtros
-          </Button>
         </div>
       </div>
 
       <Tabs defaultValue="all" onValueChange={setActiveTab} className="w-full">
         <TabsList className="bg-white border p-1 h-14 rounded-2xl w-full md:w-auto overflow-x-auto flex justify-start">
-          <TabsTrigger value="all" className="rounded-xl px-6 gap-2 data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
-            <PartyPopper className="w-4 h-4" /> Todos
-          </TabsTrigger>
-          <TabsTrigger value="casamento" className="rounded-xl px-6 gap-2 data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
-            <Heart className="w-4 h-4" /> Casamento
-          </TabsTrigger>
-          <TabsTrigger value="aniversario" className="rounded-xl px-6 gap-2 data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
-            <Cake className="w-4 h-4" /> Aniversário
-          </TabsTrigger>
-          <TabsTrigger value="revelacao" className="rounded-xl px-6 gap-2 data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
-            <Baby className="w-4 h-4" /> Chá Revelação
-          </TabsTrigger>
+          <TabsTrigger value="all" className="rounded-xl px-6 gap-2">Todos</TabsTrigger>
+          <TabsTrigger value="casamento" className="rounded-xl px-6 gap-2">Casamento</TabsTrigger>
+          <TabsTrigger value="aniversario" className="rounded-xl px-6 gap-2">Aniversário</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -97,20 +107,18 @@ const Discovery = () => {
               <div className="relative h-56 bg-slate-100 overflow-hidden">
                 <img 
                   src={artist.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${artist.full_name}`} 
-                  alt={artist.full_name} 
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                 />
                 <div className="absolute top-4 right-4 flex flex-col gap-2">
-                  {artist.is_superstar && (
-                    <Badge className="bg-amber-500 border-none gap-1 shadow-lg">
-                      <Crown className="w-3 h-3" /> Superstar
-                    </Badge>
-                  )}
-                  {artist.is_verified && (
-                    <Badge className="bg-blue-500 border-none gap-1 shadow-lg">
-                      <ShieldCheck className="w-3 h-3" /> Verificado
-                    </Badge>
-                  )}
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={`rounded-full bg-white/80 backdrop-blur-sm ${favorites.includes(artist.id) ? 'text-red-500' : 'text-slate-400'}`}
+                    onClick={() => toggleFavorite(artist.id)}
+                  >
+                    <Heart className={`w-5 h-5 ${favorites.includes(artist.id) ? 'fill-current' : ''}`} />
+                  </Button>
+                  {artist.is_superstar && <Badge className="bg-amber-500 border-none gap-1 shadow-lg"><Crown className="w-3 h-3" /> Superstar</Badge>}
                 </div>
               </div>
               
@@ -118,21 +126,12 @@ const Discovery = () => {
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <h3 className="text-lg font-bold text-slate-900">{artist.full_name}</h3>
-                    <p className="text-xs text-indigo-600 font-bold flex items-center gap-1 uppercase tracking-wider">
-                      <Music className="w-3 h-3" /> {artist.category || 'Artista'}
-                    </p>
+                    <p className="text-xs text-indigo-600 font-bold uppercase tracking-wider">{artist.category || 'Artista'}</p>
                   </div>
                   <div className="flex items-center gap-1 text-amber-500 font-black">
-                    <Star className="w-4 h-4 fill-current" />
-                    {artist.rating || '5.0'}
+                    <Star className="w-4 h-4 fill-current" /> {artist.rating || '5.0'}
                   </div>
                 </div>
-
-                <div className="flex items-center gap-1 text-slate-400 text-xs mb-6">
-                  <MapPin className="w-3 h-3" />
-                  {artist.location || 'Brasil'}
-                </div>
-
                 <div className="flex items-center justify-between pt-4 border-t border-slate-50">
                   <div>
                     <p className="text-[10px] text-slate-400 uppercase font-black">Cachê Base</p>
@@ -140,7 +139,7 @@ const Discovery = () => {
                   </div>
                   <Button 
                     onClick={() => navigate('/client/checkout', { state: { artist } })}
-                    className="bg-indigo-600 hover:bg-indigo-700 rounded-xl px-6 font-bold shadow-lg shadow-indigo-100"
+                    className="bg-indigo-600 hover:bg-indigo-700 rounded-xl px-6 font-bold"
                   >
                     Contratar
                   </Button>
