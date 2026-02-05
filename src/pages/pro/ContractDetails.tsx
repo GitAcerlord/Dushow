@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { 
-  FileText, Loader2, ArrowLeft, DollarSign, MessageSquare, CheckCircle2, XCircle, CreditCard
+  FileText, Loader2, ArrowLeft, DollarSign, MessageSquare, CheckCircle2, XCircle, CreditCard, History, Clock
 } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from "@/utils/toast";
@@ -19,6 +19,7 @@ const ContractDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [contract, setContract] = useState<any>(null);
+  const [negotiations, setNegotiations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isNegotiating, setIsNegotiating] = useState(false);
   const [newPrice, setNewPrice] = useState("");
@@ -41,6 +42,7 @@ const ContractDetails = () => {
       }
       
       await fetchContract();
+      await fetchNegotiations();
     };
     init();
   }, [id]);
@@ -66,6 +68,15 @@ const ContractDetails = () => {
     setLoading(false);
   };
 
+  const fetchNegotiations = async () => {
+    const { data } = await supabase
+      .from('contract_negotiations')
+      .select('*')
+      .eq('contract_id', id)
+      .order('created_at', { ascending: false });
+    setNegotiations(data || []);
+  };
+
   const handleUpdateStatus = async (newStatus: string) => {
     try {
       const { error } = await supabase
@@ -74,7 +85,18 @@ const ContractDetails = () => {
         .eq('id', id);
 
       if (error) throw error;
-      showSuccess(`Contrato ${newStatus === 'ACCEPTED' ? 'aceito' : 'cancelado'} com sucesso!`);
+
+      // Notificar a outra parte
+      const recipientId = userRole === 'CLIENT' ? contract.pro_id : contract.client_id;
+      await supabase.from('notifications').insert({
+        user_id: recipientId,
+        title: 'Status do Contrato Atualizado',
+        content: `O contrato para "${contract.event_name}" foi ${newStatus.toLowerCase()}.`,
+        type: 'CONTRACT',
+        link: `/client/contracts/${id}`
+      });
+
+      showSuccess(`Contrato ${newStatus.toLowerCase()} com sucesso!`);
       fetchContract();
     } catch (error: any) {
       showError("Erro ao atualizar contrato.");
@@ -83,27 +105,47 @@ const ContractDetails = () => {
 
   const handleNegotiate = async () => {
     if (!reason.trim()) {
-      showError("Por favor, informe o motivo da alteração de preço.");
+      showError("Por favor, informe o motivo da alteração.");
       return;
     }
 
     try {
+      // 1. Registrar no histórico
+      await supabase.from('contract_negotiations').insert({
+        contract_id: id,
+        sender_id: user.id,
+        old_value: contract.value,
+        new_value: parseFloat(newPrice),
+        reason: reason
+      });
+
+      // 2. Atualizar contrato
       const { error } = await supabase
         .from('contracts')
         .update({ 
           value: parseFloat(newPrice),
           negotiation_reason: reason,
-          status: 'PENDING',
-          signed_by_client: false,
-          signed_by_pro: false
+          status: 'PENDING'
         })
         .eq('id', id);
 
       if (error) throw error;
-      showSuccess("Contra-proposta enviada com sucesso!");
+
+      // 3. Notificar a outra parte
+      const recipientId = userRole === 'CLIENT' ? contract.pro_id : contract.client_id;
+      await supabase.from('notifications').insert({
+        user_id: recipientId,
+        title: 'Nova Contraproposta',
+        content: `Você recebeu uma nova proposta de valor para "${contract.event_name}".`,
+        type: 'CONTRACT',
+        link: `/client/contracts/${id}`
+      });
+
+      showSuccess("Contraproposta enviada!");
       setIsNegotiating(false);
       setReason("");
       fetchContract();
+      fetchNegotiations();
     } catch (error: any) {
       showError("Erro ao enviar negociação.");
     }
@@ -132,7 +174,7 @@ const ContractDetails = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-8">
           <Card className="p-8 md:p-12 border-none shadow-2xl bg-white rounded-[2.5rem] space-y-10">
             <div className="flex items-center gap-4 border-b pb-8">
               <div className="bg-indigo-600 p-3 rounded-2xl text-white shadow-lg">
@@ -167,63 +209,76 @@ const ContractDetails = () => {
                 </div>
               </div>
 
-              <div>
-                <p className="text-xs font-bold text-slate-400 uppercase mb-1">Localização</p>
-                <p className="font-bold text-slate-900">{contract.event_location || "A definir"}</p>
-              </div>
-
               <div className="pt-6 border-t">
-                <p className="text-xs font-bold text-slate-400 uppercase mb-1">Valor do Cachê</p>
+                <p className="text-xs font-bold text-slate-400 uppercase mb-1">Valor Atual</p>
                 <p className="text-3xl font-black text-indigo-600">R$ {Number(contract.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
               </div>
-              
-              {contract.negotiation_reason && (
-                <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl">
-                  <p className="text-xs font-bold text-amber-800 uppercase mb-1">Última Observação de Negociação:</p>
-                  <p className="text-sm text-amber-700 italic">"{contract.negotiation_reason}"</p>
-                </div>
-              )}
             </div>
           </Card>
+
+          {/* Histórico de Negociações */}
+          <div className="space-y-4">
+            <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+              <History className="w-5 h-5 text-indigo-600" />
+              Histórico de Negociação
+            </h3>
+            <div className="space-y-4">
+              {negotiations.length === 0 ? (
+                <p className="text-sm text-slate-400 italic">Nenhuma alteração registrada ainda.</p>
+              ) : (
+                negotiations.map((neg) => (
+                  <Card key={neg.id} className="p-4 border-none shadow-sm bg-white rounded-2xl flex gap-4 items-start">
+                    <div className="p-2 bg-slate-50 rounded-xl">
+                      <Clock className="w-4 h-4 text-slate-400" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <p className="text-sm font-bold text-slate-900">
+                          {neg.sender_id === contract.client_id ? 'Contratante' : 'Artista'} propôs novo valor
+                        </p>
+                        <span className="text-[10px] text-slate-400">{new Date(neg.created_at).toLocaleString()}</span>
+                      </div>
+                      <p className="text-lg font-black text-indigo-600 mt-1">R$ {Number(neg.new_value).toLocaleString('pt-BR')}</p>
+                      <p className="text-xs text-slate-500 mt-2 bg-slate-50 p-2 rounded-lg italic">"{neg.reason}"</p>
+                    </div>
+                  </Card>
+                ))
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
-          {/* Ações do Contratante quando PENDENTE */}
-          {isClient && contract.status === 'PENDING' && (
+          {contract.status === 'PENDING' && (
             <Card className="p-8 border-none shadow-xl bg-white rounded-[2rem] space-y-4">
-              <h3 className="font-black text-slate-900 text-lg">Decisão da Proposta</h3>
-              <p className="text-sm text-slate-500">Você recebeu uma proposta/contraproposta. Como deseja prosseguir?</p>
-              
+              <h3 className="font-black text-slate-900 text-lg">Ações Disponíveis</h3>
               <Button 
                 onClick={() => handleUpdateStatus('ACCEPTED')} 
                 className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 rounded-xl gap-2 font-bold"
               >
-                <CheckCircle2 className="w-4 h-4" /> Aceitar Proposta
+                <CheckCircle2 className="w-4 h-4" /> Aceitar
               </Button>
-
               <Button 
                 onClick={() => setIsNegotiating(true)} 
                 variant="outline"
                 className="w-full border-indigo-100 text-indigo-600 h-12 rounded-xl gap-2 font-bold"
               >
-                <MessageSquare className="w-4 h-4" /> Negociar Valor
+                <MessageSquare className="w-4 h-4" /> Contraproposta
               </Button>
-
               <Button 
-                onClick={() => handleUpdateStatus('CANCELLED')} 
+                onClick={() => handleUpdateStatus('REJECTED')} 
                 variant="ghost"
                 className="w-full text-red-500 hover:bg-red-50 h-12 rounded-xl gap-2 font-bold"
               >
-                <XCircle className="w-4 h-4" /> Cancelar Solicitação
+                <XCircle className="w-4 h-4" /> Rejeitar
               </Button>
             </Card>
           )}
 
-          {/* Ações do Contratante quando ACEITO (Ir para Pagamento) */}
           {isClient && contract.status === 'ACCEPTED' && (
             <Card className="p-8 border-none shadow-xl bg-indigo-600 text-white rounded-[2rem] space-y-4">
-              <h3 className="font-black text-lg">Proposta Aceita!</h3>
-              <p className="text-sm text-indigo-100">O valor foi acordado. Realize o pagamento para garantir a data na agenda do artista.</p>
+              <h3 className="font-black text-lg">Pronto para Pagamento</h3>
+              <p className="text-sm text-indigo-100">O valor foi acordado. Realize o pagamento para confirmar o show.</p>
               <Button 
                 onClick={() => navigate('/client/checkout', { state: { artist: contract.pro, contractId: contract.id } })}
                 className="w-full bg-white text-indigo-600 hover:bg-indigo-50 h-14 rounded-xl gap-2 font-black text-lg shadow-lg"
@@ -233,32 +288,11 @@ const ContractDetails = () => {
             </Card>
           )}
 
-          {/* Ações do Artista quando PENDENTE */}
-          {isPro && contract.status === 'PENDING' && (
-            <Card className="p-8 border-none shadow-xl bg-white rounded-[2rem] space-y-4">
-              <h3 className="font-black text-slate-900 text-lg">Gerenciar Proposta</h3>
-              <Button 
-                onClick={() => handleUpdateStatus('ACCEPTED')} 
-                className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-xl gap-2 font-bold"
-              >
-                <CheckCircle2 className="w-4 h-4" /> Aceitar Proposta
-              </Button>
-              <Button 
-                onClick={() => setIsNegotiating(true)} 
-                variant="outline"
-                className="w-full border-slate-200 h-12 rounded-xl gap-2 font-bold"
-              >
-                <MessageSquare className="w-4 h-4" /> Contraproposta
-              </Button>
-            </Card>
-          )}
-
-          {/* Modal/Form de Negociação (Shared) */}
           {isNegotiating && (
-            <Card className="p-8 border-none shadow-xl bg-slate-50 rounded-[2rem] space-y-6 animate-in fade-in slide-in-from-bottom-4">
-              <h3 className="font-black text-slate-900 flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-indigo-600" />
-                Nova Contraproposta
+            <Card className="p-8 border-none shadow-xl bg-slate-900 text-white rounded-[2rem] space-y-6">
+              <h3 className="font-black flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-indigo-400" />
+                Nova Proposta
               </h3>
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -267,21 +301,21 @@ const ContractDetails = () => {
                     type="number" 
                     value={newPrice} 
                     onChange={(e) => setNewPrice(e.target.value)} 
-                    className="h-12 bg-white border-none rounded-xl shadow-sm"
+                    className="h-12 bg-white/10 border-none rounded-xl text-white"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase text-slate-400">Motivo / Observação</Label>
+                  <Label className="text-xs font-bold uppercase text-slate-400">Motivo</Label>
                   <Textarea 
-                    placeholder="Explique o motivo da alteração..." 
+                    placeholder="Explique o motivo..." 
                     value={reason} 
                     onChange={(e) => setReason(e.target.value)}
-                    className="bg-white border-none rounded-xl shadow-sm min-h-[100px]"
+                    className="bg-white/10 border-none rounded-xl min-h-[100px] text-white"
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={() => setIsNegotiating(false)} variant="ghost" className="flex-1 rounded-xl">Cancelar</Button>
-                  <Button onClick={handleNegotiate} className="bg-indigo-600 flex-1 rounded-xl font-bold">Enviar</Button>
+                  <Button onClick={() => setIsNegotiating(false)} variant="ghost" className="flex-1 text-white">Cancelar</Button>
+                  <Button onClick={handleNegotiate} className="bg-indigo-600 flex-1 font-bold">Enviar</Button>
                 </div>
               </div>
             </Card>

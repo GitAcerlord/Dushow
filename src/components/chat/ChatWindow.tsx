@@ -26,7 +26,25 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, role }: any) 
       setCurrentUser(user);
       if (user && recipientId) {
         fetchMessages(user.id);
-        subscribeToMessages(user.id);
+        
+        // Inscrição Realtime
+        const channel = supabase
+          .channel(`chat:${recipientId}`)
+          .on('postgres_changes', { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'messages',
+            filter: `receiver_id=eq.${user.id}`
+          }, (payload) => {
+            if (payload.new.sender_id === recipientId) {
+              setMessages(prev => [...prev, payload.new]);
+            }
+          })
+          .subscribe();
+
+        return () => {
+          supabase.removeChannel(channel);
+        };
       }
     };
     initChat();
@@ -49,25 +67,6 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, role }: any) 
     setLoading(false);
   };
 
-  const subscribeToMessages = (userId: string) => {
-    const channel = supabase
-      .channel('schema-db-changes')
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'messages' 
-      }, (payload) => {
-        const newMsg = payload.new;
-        if ((newMsg.sender_id === userId && newMsg.receiver_id === recipientId) || 
-            (newMsg.sender_id === recipientId && newMsg.receiver_id === userId)) {
-          setMessages(prev => [...prev, newMsg]);
-        }
-      })
-      .subscribe();
-
-    return () => supabase.removeChannel(channel);
-  };
-
   const handleSendMessage = async () => {
     if (!inputText.trim() || !currentUser || sending) return;
 
@@ -78,13 +77,17 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, role }: any) 
     }
 
     setSending(true);
+    const newMessage = {
+      sender_id: currentUser.id,
+      receiver_id: recipientId,
+      content: inputText
+    };
+
     try {
-      const { error } = await supabase.from('messages').insert({
-        sender_id: currentUser.id,
-        receiver_id: recipientId,
-        content: inputText
-      });
+      const { data, error } = await supabase.from('messages').insert(newMessage).select().single();
       if (error) throw error;
+      
+      setMessages(prev => [...prev, data]);
       setInputText("");
     } catch (error: any) {
       showError("Erro ao enviar mensagem.");
