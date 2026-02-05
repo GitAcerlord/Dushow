@@ -17,51 +17,38 @@ serve(async (req) => {
 
     const { contractId, userId, role } = await req.json()
     
-    // 1. Buscar dados do contrato
+    // 1. AUDITORIA: Busca dados imutáveis para o Hash
     const { data: contract, error: fetchError } = await supabaseClient
       .from('contracts')
-      .select('*')
+      .select('id, event_name, value, event_date, client_id, pro_id')
       .eq('id', contractId)
       .single()
 
-    if (fetchError || !contract) throw new Error("Contrato não encontrado")
+    if (fetchError || !contract) throw new Error("Contrato não localizado para auditoria.")
 
-    // 2. Coleta de Evidências Digitais
+    // 2. Coleta de Evidências Forenses
     const metadata = {
-      ip: req.headers.get('x-real-ip') || '127.0.0.1',
+      ip: req.headers.get('x-real-ip') || 'unknown',
       userAgent: req.headers.get('user-agent'),
       timestamp: new Date().toISOString(),
-      method: 'DUSHOW_SECURE_SIGN',
       auth_id: userId
     }
 
-    // 3. Geração do Hash de Integridade (Imutabilidade)
-    // Concatenamos os dados sensíveis do contrato para garantir que se mudarem, o hash quebra.
-    const rawContent = `${contract.id}-${contract.event_name}-${contract.value}-${contract.event_date}`;
+    // 3. Geração de Hash de Integridade (SHA-256)
+    const rawContent = `${contract.id}|${contract.event_name}|${contract.value}|${contract.event_date}`;
     const encoder = new TextEncoder();
     const data = encoder.encode(rawContent);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 
-    // 4. Registro da Assinatura
-    const updateData: any = {
-      signature_hash: hashHex // Atualiza o hash global do documento
-    }
-
+    // 4. Persistência Real
+    const updateData: any = { signature_hash: hashHex };
     if (role === 'CLIENT') {
       updateData.signed_by_client = true;
       updateData.signed_at_client = metadata.timestamp;
-      updateData.client_signature_metadata = metadata;
     } else {
       updateData.signed_by_pro = true;
       updateData.signed_at_pro = metadata.timestamp;
-      updateData.pro_signature_metadata = metadata;
-    }
-
-    // Se ambos assinaram, o contrato passa para PAID (ou CONFIRMED)
-    if ((role === 'CLIENT' && contract.signed_by_pro) || (role === 'PRO' && contract.signed_by_client)) {
-      updateData.status = 'PAID';
     }
 
     const { error: updateError } = await supabaseClient
@@ -71,15 +58,18 @@ serve(async (req) => {
 
     if (updateError) throw updateError
 
+    console.log(`[digital-signature] Audit Success: Contract ${contractId} signed by ${role}`);
+
     return new Response(JSON.stringify({ success: true, hash: hashHex }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
-  } catch (error) {
+  } catch (error: any) {
+    console.error("[digital-signature] Audit Failure:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
+      headers: corsHeaders
     })
   }
 })
