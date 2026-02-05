@@ -6,149 +6,131 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  Search, Star, MapPin, Filter, ShieldCheck, Award, Music, Loader2, Heart, PartyPopper, Cake, Baby, Crown
+  Search, Star, MapPin, Heart, Loader2, Crown, Calendar, DollarSign
 } from "lucide-react";
+import { 
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter 
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 
 const Discovery = () => {
   const navigate = useNavigate();
   const [artists, setArtists] = useState<any[]>([]);
-  const [favorites, setFavorites] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
+  
+  // Estado para nova proposta
+  const [selectedArtist, setSelectedArtist] = useState<any>(null);
+  const [proposalData, setProposalData] = useState({
+    eventName: "",
+    eventDate: "",
+    location: ""
+  });
 
   useEffect(() => {
     fetchArtists();
-    fetchUserFavorites();
-  }, [activeTab]);
-
-  const fetchUserFavorites = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data } = await supabase.from('favorites').select('artist_id').eq('user_id', user.id);
-      setFavorites(data?.map(f => f.artist_id) || []);
-    }
-  };
+  }, []);
 
   const fetchArtists = async () => {
     setLoading(true);
+    const { data } = await supabase.from('profiles').select('*').eq('role', 'PRO').order('is_superstar', { ascending: false });
+    setArtists(data || []);
+    setLoading(false);
+  };
+
+  const handleSendProposal = async () => {
+    if (!proposalData.eventName || !proposalData.eventDate) {
+      showError("Preencha os dados do evento.");
+      return;
+    }
+
     try {
-      let query = supabase.from('profiles').select('*').eq('role', 'PRO');
-      if (activeTab !== 'all') {
-        query = query.ilike('bio', `%${activeTab}%`);
-      }
-      const { data, error } = await query.order('is_superstar', { ascending: false });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não logado.");
+
+      // REGRA DE NEGÓCIO: Criação real de contrato PENDING
+      const { error } = await supabase.from('contracts').insert({
+        client_id: user.id,
+        pro_id: selectedArtist.id,
+        event_name: proposalData.eventName,
+        event_date: proposalData.eventDate,
+        event_location: proposalData.location,
+        value: selectedArtist.price,
+        status: 'PENDING'
+      });
+
       if (error) throw error;
-      setArtists(data || []);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
+
+      showSuccess(`Proposta enviada para ${selectedArtist.full_name}!`);
+      setSelectedArtist(null);
+      navigate('/client/events');
+    } catch (error: any) {
+      showError("Erro ao enviar proposta.");
     }
   };
-
-  const toggleFavorite = async (artistId: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    if (favorites.includes(artistId)) {
-      await supabase.from('favorites').delete().eq('user_id', user.id).eq('artist_id', artistId);
-      setFavorites(favorites.filter(id => id !== artistId));
-    } else {
-      await supabase.from('favorites').insert({ user_id: user.id, artist_id: artistId });
-      setFavorites([...favorites, artistId]);
-      showSuccess("Adicionado aos favoritos!");
-    }
-  };
-
-  const filteredArtists = artists.filter(a => 
-    a.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    a.category?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   return (
-    <div className="p-4 md:p-8 space-y-8">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Encontre o Talento Ideal</h1>
-          <p className="text-slate-500 mt-1">Profissionais verificados para transformar seu evento.</p>
-        </div>
-        <div className="flex gap-2 w-full md:w-auto">
-          <div className="relative flex-1 md:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <Input 
-              className="pl-10 bg-white border-slate-200 h-12 rounded-xl" 
-              placeholder="Buscar por nome ou estilo..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
+    <div className="p-8 space-y-8">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-black text-slate-900">Descobrir Talentos</h1>
+        <Input 
+          className="max-w-xs bg-white rounded-xl" 
+          placeholder="Buscar artista..." 
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
       </div>
 
-      <Tabs defaultValue="all" onValueChange={setActiveTab} className="w-full">
-        <TabsList className="bg-white border p-1 h-14 rounded-2xl w-full md:w-auto overflow-x-auto flex justify-start">
-          <TabsTrigger value="all" className="rounded-xl px-6 gap-2">Todos</TabsTrigger>
-          <TabsTrigger value="casamento" className="rounded-xl px-6 gap-2">Casamento</TabsTrigger>
-          <TabsTrigger value="aniversario" className="rounded-xl px-6 gap-2">Aniversário</TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      {loading ? (
-        <div className="flex justify-center py-20"><Loader2 className="animate-spin w-10 h-10 text-indigo-600" /></div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredArtists.map((artist) => (
-            <Card key={artist.id} className="group overflow-hidden border-none shadow-md hover:shadow-2xl transition-all duration-500 bg-white rounded-3xl">
-              <div className="relative h-56 bg-slate-100 overflow-hidden">
-                <img 
-                  src={artist.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${artist.full_name}`} 
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                />
-                <div className="absolute top-4 right-4 flex flex-col gap-2">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={`rounded-full bg-white/80 backdrop-blur-sm ${favorites.includes(artist.id) ? 'text-red-500' : 'text-slate-400'}`}
-                    onClick={() => toggleFavorite(artist.id)}
-                  >
-                    <Heart className={`w-5 h-5 ${favorites.includes(artist.id) ? 'fill-current' : ''}`} />
-                  </Button>
-                  {artist.is_superstar && <Badge className="bg-amber-500 border-none gap-1 shadow-lg"><Crown className="w-3 h-3" /> Superstar</Badge>}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {artists.map((artist) => (
+          <Card key={artist.id} className="group overflow-hidden border-none shadow-md bg-white rounded-3xl">
+            <div className="h-48 bg-slate-100 relative">
+              <img src={artist.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${artist.full_name}`} className="w-full h-full object-cover" />
+              {artist.is_superstar && <Badge className="absolute top-3 right-3 bg-amber-500"><Crown className="w-3 h-3 mr-1" /> Superstar</Badge>}
+            </div>
+            <div className="p-5 space-y-4">
+              <h3 className="font-bold text-slate-900">{artist.full_name}</h3>
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-[10px] text-slate-400 uppercase font-black">Cachê</p>
+                  <p className="text-lg font-black text-indigo-600">R$ {Number(artist.price).toLocaleString('pt-BR')}</p>
                 </div>
+                
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button onClick={() => setSelectedArtist(artist)} className="bg-slate-900 rounded-xl">Contratar</Button>
+                  </DialogTrigger>
+                  <DialogContent className="rounded-3xl">
+                    <DialogHeader>
+                      <DialogTitle>Enviar Proposta para {artist.full_name}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label>Nome do Evento</Label>
+                        <Input value={proposalData.eventName} onChange={(e) => setProposalData({...proposalData, eventName: e.target.value})} placeholder="Ex: Casamento de Ana & Leo" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Data do Evento</Label>
+                        <Input type="datetime-local" value={proposalData.eventDate} onChange={(e) => setProposalData({...proposalData, eventDate: e.target.value})} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Localização</Label>
+                        <Input value={proposalData.location} onChange={(e) => setProposalData({...proposalData, location: e.target.value})} placeholder="Cidade, Estado" />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button onClick={handleSendProposal} className="w-full bg-indigo-600 h-12 rounded-xl font-bold">Enviar Proposta Real</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
-              
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900">{artist.full_name}</h3>
-                    <p className="text-xs text-indigo-600 font-bold uppercase tracking-wider">{artist.category || 'Artista'}</p>
-                  </div>
-                  <div className="flex items-center gap-1 text-amber-500 font-black">
-                    <Star className="w-4 h-4 fill-current" /> {artist.rating || '5.0'}
-                  </div>
-                </div>
-                <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                  <div>
-                    <p className="text-[10px] text-slate-400 uppercase font-black">Cachê Base</p>
-                    <p className="text-lg font-black text-slate-900">R$ {Number(artist.price).toLocaleString('pt-BR')}</p>
-                  </div>
-                  <Button 
-                    onClick={() => navigate('/client/checkout', { state: { artist } })}
-                    className="bg-indigo-600 hover:bg-indigo-700 rounded-xl px-6 font-bold"
-                  >
-                    Contratar
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+            </div>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 };

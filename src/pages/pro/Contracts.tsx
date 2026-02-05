@@ -45,6 +45,7 @@ const ProContracts = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
+      // REGRA DE NEGÓCIO: Atualização real no banco
       const { error: updateError } = await supabase
         .from('contracts')
         .update({ status: newStatus })
@@ -52,6 +53,7 @@ const ProContracts = () => {
 
       if (updateError) throw updateError;
 
+      // Gamificação real: XP apenas em conclusão
       if (newStatus === 'COMPLETED' && user) {
         const { data: profile } = await supabase.from('profiles').select('xp_total').eq('id', user.id).single();
         await supabase.from('profiles').update({ xp_total: (profile?.xp_total || 0) + 100 }).eq('id', user.id);
@@ -62,7 +64,7 @@ const ProContracts = () => {
 
       fetchContracts();
     } catch (error: any) {
-      showError("Erro ao processar ação.");
+      showError("Erro ao processar ação no banco.");
     }
   };
 
@@ -82,47 +84,43 @@ const ProContracts = () => {
       </div>
 
       <div className="grid gap-6">
-        {contracts.length === 0 ? (
-          <Card className="p-20 text-center border-dashed border-2 text-slate-400">Nenhum contrato encontrado.</Card>
-        ) : (
-          contracts.map((contract) => (
-            <Card key={contract.id} className="p-6 border-none shadow-sm bg-white flex flex-col md:flex-row gap-6 items-start md:items-center">
-              <div className="flex-1 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-slate-900">{contract.event_name}</h3>
-                  <Badge className={cn(
-                    "uppercase text-[10px] font-bold",
-                    contract.status === 'PAID' ? 'bg-emerald-50 text-emerald-600' : 
-                    contract.status === 'PENDING' ? 'bg-amber-50 text-amber-600' : 
-                    contract.status === 'COMPLETED' ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'
-                  )}>
-                    {contract.status}
-                  </Badge>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-500">
-                  <div className="flex items-center gap-2"><Calendar className="w-4 h-4" /> {new Date(contract.event_date).toLocaleDateString()}</div>
-                  <div className="flex items-center gap-2 font-bold text-indigo-600"><DollarSign className="w-4 h-4" /> R$ {Number(contract.value).toLocaleString('pt-BR')}</div>
-                </div>
+        {contracts.map((contract) => (
+          <Card key={contract.id} className="p-6 border-none shadow-sm bg-white flex flex-col md:flex-row gap-6 items-start md:items-center">
+            <div className="flex-1 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-slate-900">{contract.event_name}</h3>
+                <Badge className={cn(
+                  "uppercase text-[10px] font-bold",
+                  contract.status === 'PAID' ? 'bg-emerald-50 text-emerald-600' : 
+                  contract.status === 'PENDING' ? 'bg-amber-50 text-amber-600' : 
+                  contract.status === 'REJECTED' ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-500'
+                )}>
+                  {contract.status}
+                </Badge>
               </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-500">
+                <div className="flex items-center gap-2"><Calendar className="w-4 h-4" /> {new Date(contract.event_date).toLocaleDateString()}</div>
+                <div className="flex items-center gap-2 font-bold text-indigo-600"><DollarSign className="w-4 h-4" /> R$ {Number(contract.value).toLocaleString('pt-BR')}</div>
+              </div>
+            </div>
 
-              <div className="flex flex-row md:flex-col gap-2 w-full md:w-auto">
-                {contract.status === 'PENDING' && (
-                  <>
-                    <Button onClick={() => handleAction(contract.id, 'ACCEPTED')} className="bg-indigo-600 flex-1">Aceitar</Button>
-                    <Button onClick={() => handleAction(contract.id, 'REJECTED')} variant="outline" className="text-red-600 border-red-100 flex-1">Recusar</Button>
-                  </>
-                )}
-                {contract.status === 'PAID' && (
-                  <Button onClick={() => handleAction(contract.id, 'COMPLETED')} className="bg-emerald-600 flex-1">Concluir Evento</Button>
-                )}
-                <Button variant="ghost" asChild className="text-indigo-600 gap-2 flex-1">
-                  <Link to={`/pro/contracts/${contract.id}`}><FileText className="w-4 h-4" /> Ver Contrato</Link>
-                </Button>
-              </div>
-            </Card>
-          ))
-        )}
+            <div className="flex flex-row md:flex-col gap-2 w-full md:w-auto">
+              {contract.status === 'PENDING' && (
+                <>
+                  <Button onClick={() => handleAction(contract.id, 'ACCEPTED')} className="bg-indigo-600 flex-1">Aceitar</Button>
+                  <Button onClick={() => handleAction(contract.id, 'REJECTED')} variant="outline" className="text-red-600 border-red-100 flex-1">Recusar</Button>
+                </>
+              )}
+              {contract.status === 'PAID' && (
+                <Button onClick={() => handleAction(contract.id, 'COMPLETED')} className="bg-emerald-600 flex-1">Concluir Evento</Button>
+              )}
+              <Button variant="ghost" asChild className="text-indigo-600 gap-2 flex-1">
+                <Link to={`/pro/contracts/${contract.id}`}><FileText className="w-4 h-4" /> Ver Contrato</Link>
+              </Button>
+            </div>
+          </Card>
+        ))}
       </div>
     </div>
   );
