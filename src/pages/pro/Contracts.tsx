@@ -108,7 +108,10 @@ const ProContracts = () => {
 
               <div className="flex flex-row md:flex-col gap-2 w-full md:w-auto">
                 {contract.status === 'PENDING' && (
-                  <Button onClick={() => handleAction(contract.id, 'ACCEPTED')} className="bg-indigo-600 flex-1">Aceitar Proposta</Button>
+                  <>
+                    <Button onClick={() => handleAction(contract.id, 'ACCEPTED')} className="bg-indigo-600 flex-1">Aceitar</Button>
+                    <Button onClick={() => handleAction(contract.id, 'REJECTED')} variant="outline" className="text-red-600 border-red-100 flex-1">Recusar</Button>
+                  </>
                 )}
                 {contract.status === 'PAID' && (
                   <Button onClick={() => handleAction(contract.id, 'COMPLETED')} className="bg-emerald-600 flex-1">Concluir Evento</Button>

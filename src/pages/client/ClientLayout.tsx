@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import ClientSidebar from '@/components/client/ClientSidebar';
 import { Bell, Search, Loader2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 const ClientLayout = () => {
   const [profile, setProfile] = useState<any>(null);
@@ -18,6 +18,11 @@ const ClientLayout = () => {
         return;
       }
       const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      
+      if (data?.role !== 'CLIENT' && data?.role !== 'ADMIN') {
+        navigate('/');
+        return;
+      }
       setProfile(data);
     };
     getProfile();

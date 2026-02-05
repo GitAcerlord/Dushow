@@ -18,6 +18,11 @@ const ProLayout = () => {
         return;
       }
       const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      
+      if (data?.role !== 'PRO' && data?.role !== 'ADMIN') {
+        navigate('/');
+        return;
+      }
       setProfile(data);
     };
     getProfile();
