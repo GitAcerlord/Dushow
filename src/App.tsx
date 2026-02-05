@@ -29,12 +29,14 @@ import ProReviews from "./pages/pro/Reviews";
 import ProContracts from "./pages/pro/Contracts";
 import ContractDetails from "./pages/pro/ContractDetails";
 import ClientLayout from "./pages/client/ClientLayout";
+import ClientDashboard from "./pages/client/Dashboard";
 import Discovery from "./pages/client/Discovery";
 import ClientMessages from "./pages/client/Messages";
 import Checkout from "./pages/client/Checkout";
+import ClientEvents from "./pages/client/Events";
+import ClientPayments from "./pages/client/Payments";
 
 const Academy = () => <div className="p-20 text-center"><h1>DUSHOW Academy - Em Breve para membros Pro e Elite</h1></div>;
-const ClientDashboard = () => <div className="p-8"><h1>Painel Contratante</h1></div>;
 
 const queryClient = new QueryClient();
 
@@ -82,10 +84,10 @@ const App = () => (
             <Route index element={<ClientDashboard />} />
             <Route path="discovery" element={<Discovery />} />
             <Route path="checkout" element={<Checkout />} />
-            <Route path="events" element={<div className="p-8"><h1>Meus Eventos</h1></div>} />
+            <Route path="events" element={<ClientEvents />} />
             <Route path="messages" element={<ClientMessages />} />
-            <Route path="favorites" element={<div className="p-8"><h1>Favoritos</h1></div>} />
-            <Route path="payments" element={<div className="p-8"><h1>Histórico de Pagamentos</h1></div>} />
+            <Route path="favorites" element={<div className="p-8"><h1>Favoritos (Em breve)</h1></div>} />
+            <Route path="payments" element={<ClientPayments />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
