@@ -37,19 +37,19 @@ const Checkout = () => {
     setIsProcessing(true);
     try {
       // 1. Criar o Contrato no Banco de Dados
-      const { error: contractError } = await supabase.from('contracts').insert({
+      const { data: contract, error: contractError } = await supabase.from('contracts').insert({
         client_id: user.id,
         pro_id: artist.id,
         event_name: `Show com ${artist.full_name}`,
         event_date: new Date(Date.now() + 604800000).toISOString(), // +7 dias
         value: artist.price,
-        status: 'PAID' // Simulando que o pagamento foi confirmado
-      });
+        status: 'PENDING'
+      }).select().single();
 
       if (contractError) throw contractError;
 
-      showSuccess("Pagamento confirmado e contrato gerado!");
-      navigate('/client');
+      showSuccess("Pagamento processado! Agora assine o contrato.");
+      navigate(`/pro/contracts/${contract.id}`); // Redireciona para a página de assinatura
     } catch (error: any) {
       console.error("Erro no Checkout:", error);
       showError("Falha ao processar pagamento.");
