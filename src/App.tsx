@@ -2,13 +2,18 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+
+// Pages
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import About from "./pages/About";
 import Marketplace from "./pages/Marketplace";
+
+// Admin
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminUsers from "./pages/admin/Users";
@@ -16,6 +21,8 @@ import AdminContracts from "./pages/admin/Contracts";
 import AdminApprovals from "./pages/admin/Approvals";
 import AdminSettings from "./pages/admin/Settings";
 import AdminFinance from "./pages/admin/Finance";
+
+// Pro
 import ProLayout from "./pages/pro/ProLayout";
 import ProDashboard from "./pages/pro/Dashboard";
 import ProFinance from "./pages/pro/Finance";
@@ -29,16 +36,16 @@ import ProAchievements from "./pages/pro/Achievements";
 import ProReviews from "./pages/pro/Reviews";
 import ProContracts from "./pages/pro/Contracts";
 import ContractDetails from "./pages/pro/ContractDetails";
+
+// Client
 import ClientLayout from "./pages/client/ClientLayout";
 import ClientDashboard from "./pages/client/Dashboard";
 import Discovery from "./pages/client/Discovery";
-import ClientMessages from "./pages/client/Messages";
 import Checkout from "./pages/client/Checkout";
 import ClientEvents from "./pages/client/Events";
-import ClientPayments from "./pages/client/Payments";
+import ClientMessages from "./pages/client/Messages";
 import Favorites from "./pages/client/Favorites";
-
-const Academy = () => <div className="p-20 text-center"><h1>DUSHOW Academy - Em Breve para membros Pro e Elite</h1></div>;
+import ClientPayments from "./pages/client/Payments";
 
 const queryClient = new QueryClient();
 
@@ -54,10 +61,13 @@ const App = () => (
           <Route path="/register" element={<Register />} />
           <Route path="/about" element={<About />} />
           <Route path="/marketplace" element={<Marketplace />} />
-          <Route path="/academy" element={<Academy />} />
           
-          {/* Painel Administrativo */}
-          <Route path="/admin" element={<AdminLayout />}>
+          {/* Painel Administrativo - Protegido */}
+          <Route path="/admin" element={
+            <ProtectedRoute allowedRoles={['ADMIN']}>
+              <AdminLayout />
+            </ProtectedRoute>
+          }>
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="contracts" element={<AdminContracts />} />
@@ -66,8 +76,12 @@ const App = () => (
             <Route path="settings" element={<AdminSettings />} />
           </Route>
 
-          {/* Painel do Profissional */}
-          <Route path="/pro" element={<ProLayout />}>
+          {/* Painel do Profissional - Protegido */}
+          <Route path="/pro" element={
+            <ProtectedRoute allowedRoles={['PRO', 'ADMIN']}>
+              <ProLayout />
+            </ProtectedRoute>
+          }>
             <Route index element={<ProDashboard />} />
             <Route path="profile" element={<ProProfile />} />
             <Route path="feed" element={<Feed />} />
@@ -82,8 +96,12 @@ const App = () => (
             <Route path="finance" element={<ProFinance />} />
           </Route>
 
-          {/* Painel do Contratante */}
-          <Route path="/client" element={<ClientLayout />}>
+          {/* Painel do Contratante - Protegido */}
+          <Route path="/client" element={
+            <ProtectedRoute allowedRoles={['CLIENT', 'ADMIN']}>
+              <ClientLayout />
+            </ProtectedRoute>
+          }>
             <Route index element={<ClientDashboard />} />
             <Route path="discovery" element={<Discovery />} />
             <Route path="checkout" element={<Checkout />} />
