@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { 
@@ -12,9 +12,32 @@ import {
   Star,
   ArrowRight
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profile) {
+          if (profile.role === 'ADMIN') navigate('/admin');
+          else if (profile.role === 'CLIENT') navigate('/client');
+          else navigate('/pro');
+        }
+      }
+    };
+    checkUser();
+  }, [navigate]);
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Navigation */}
@@ -28,7 +51,8 @@ const Index = () => {
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
           <a href="#features" className="hover:text-indigo-600 transition-colors">Funcionalidades</a>
           <a href="#how-it-works" className="hover:text-indigo-600 transition-colors">Como Funciona</a>
-          <a href="#pricing" className="hover:text-indigo-600 transition-colors">Planos</a>
+          <Link to="/marketplace" className="hover:text-indigo-600 transition-colors">Marketplace</Link>
+          <Link to="/about" className="hover:text-indigo-600 transition-colors">Sobre</Link>
         </div>
         <div className="flex items-center gap-4">
           <Button variant="ghost" asChild>
@@ -52,15 +76,14 @@ const Index = () => {
         </h1>
         <p className="text-xl text-slate-600 mb-12 max-w-2xl mx-auto leading-relaxed">
           A plataforma completa para profissionais da música e contratantes. 
-          Gestão de contratos, pagamentos seguros via ASAAS e visibilidade real.
+          Gestão de contratos, pagamentos seguros e visibilidade real.
         </p>
         <div className="flex flex-col md:flex-row items-center justify-center gap-4">
-          <Button size="lg" className="h-14 px-8 text-lg bg-indigo-600 hover:bg-indigo-700 w-full md:w-auto">
-            Sou Profissional
-            <ArrowRight className="ml-2 w-5 h-5" />
+          <Button size="lg" className="h-14 px-8 text-lg bg-indigo-600 hover:bg-indigo-700 w-full md:w-auto" asChild>
+            <Link to="/register">Sou Profissional <ArrowRight className="ml-2 w-5 h-5" /></Link>
           </Button>
-          <Button size="lg" variant="outline" className="h-14 px-8 text-lg w-full md:w-auto">
-            Quero Contratar
+          <Button size="lg" variant="outline" className="h-14 px-8 text-lg w-full md:w-auto" asChild>
+            <Link to="/register">Quero Contratar</Link>
           </Button>
         </div>
       </section>
@@ -95,7 +118,7 @@ const Index = () => {
             </div>
             <h3 className="text-xl font-bold mb-3">Pagamento Seguro</h3>
             <p className="text-slate-600 leading-relaxed">
-              Integração nativa com ASAAS. Sistema de Escrow que garante o pagamento ao artista e a entrega ao contratante.
+              Sistema de Escrow que garante o pagamento ao artista e a entrega ao contratante.
             </p>
           </Card>
           <Card className="p-8 border-none shadow-sm bg-white hover:shadow-md transition-shadow">

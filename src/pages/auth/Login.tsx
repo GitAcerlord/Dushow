@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Mic2, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 
 const loginSchema = z.object({
@@ -38,9 +38,25 @@ const Login = () => {
 
       if (error) throw error;
 
+      // Buscar o perfil para saber o papel (role)
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
       showSuccess("Bem-vindo de volta!");
-      // Aqui poderíamos buscar o perfil para saber para onde redirecionar
-      navigate('/pro'); 
+      
+      // Redirecionamento baseado no papel
+      if (profile.role === 'ADMIN') {
+        navigate('/admin');
+      } else if (profile.role === 'CLIENT') {
+        navigate('/client');
+      } else {
+        navigate('/pro');
+      }
     } catch (error: any) {
       showError(error.message || "Erro ao entrar. Verifique suas credenciais.");
     } finally {
