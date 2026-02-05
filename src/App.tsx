@@ -20,6 +20,7 @@ import ProLayout from "./pages/pro/ProLayout";
 import ProDashboard from "./pages/pro/Dashboard";
 import ProFinance from "./pages/pro/Finance";
 import ProPlans from "./pages/pro/Plans";
+import PlanCheckout from "./pages/pro/PlanCheckout";
 import Feed from "./pages/pro/Feed";
 import ProAgenda from "./pages/pro/Agenda";
 import ProProfile from "./pages/pro/Profile";
@@ -77,6 +78,7 @@ const App = () => (
             <Route path="agenda" element={<ProAgenda />} />
             <Route path="achievements" element={<ProAchievements />} />
             <Route path="plans" element={<ProPlans />} />
+            <Route path="plans/checkout" element={<PlanCheckout />} />
             <Route path="finance" element={<ProFinance />} />
           </Route>
 
