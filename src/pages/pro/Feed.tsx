@@ -41,9 +41,20 @@ const Feed = () => {
       const from = pageNumber * POSTS_PER_PAGE;
       const to = from + POSTS_PER_PAGE - 1;
 
+      // Query simplificada para evitar erros de relacionamento
       const { data: postsData, error } = await supabase
         .from('posts')
-        .select(`*, profiles:author_id (full_name, avatar_url, is_superstar, is_verified, category)`)
+        .select(`
+          *,
+          profiles:author_id (
+            id,
+            full_name,
+            avatar_url,
+            is_superstar,
+            is_verified,
+            category
+          )
+        `)
         .order('created_at', { ascending: false })
         .range(from, to);
 
@@ -52,6 +63,7 @@ const Feed = () => {
       setHasMore(postsData.length === POSTS_PER_PAGE);
       setPosts(prev => append ? [...prev, ...postsData] : postsData);
     } catch (error: any) {
+      console.error("Feed Error:", error);
       showError("Erro ao carregar o feed.");
     } finally {
       setLoading(false);
@@ -114,7 +126,7 @@ const Feed = () => {
     }
   };
 
-  if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin text-indigo-600" /></div>;
+  if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin w-8 h-8 text-indigo-600" /></div>;
 
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6">

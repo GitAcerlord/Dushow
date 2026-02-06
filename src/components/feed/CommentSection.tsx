@@ -51,7 +51,7 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
       setComments([...comments, data]);
       setNewComment("");
     } catch (e) {
-      showError("Erro ao comentar.");
+      showError("Erro ao comentar. Verifique sua conexão.");
     } finally {
       setSubmitting(false);
     }
@@ -73,6 +73,8 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
       setEditingId(null);
     }
   };
+
+  if (loading) return <div className="py-4 flex justify-center"><Loader2 className="w-4 h-4 animate-spin text-slate-300" /></div>;
 
   return (
     <div className="mt-4 space-y-4 border-t pt-4">

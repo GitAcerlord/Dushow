@@ -49,6 +49,7 @@ import Favorites from "./pages/client/Favorites";
 import ClientPayments from "./pages/client/Payments";
 import ClientProfile from "./pages/client/Profile";
 import ClientFeed from "./pages/client/Feed";
+import ArtistProfile from "./pages/client/ArtistProfile";
 
 const queryClient = new QueryClient();
 
@@ -116,6 +117,7 @@ const App = () => (
             <Route path="messages" element={<ClientMessages />} />
             <Route path="favorites" element={<Favorites />} />
             <Route path="payments" element={<ClientPayments />} />
+            <Route path="artist/:id" element={<ArtistProfile />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
