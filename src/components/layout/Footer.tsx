@@ -6,11 +6,11 @@ import { Mic2, Instagram, Linkedin, Twitter, Youtube } from 'lucide-react';
 
 const Footer = () => {
   return (
-    <footer className="bg-slate-900 text-slate-300 py-20 px-6 border-t border-slate-800">
+    <footer className="bg-[#0F172A] text-slate-300 py-20 px-6 md:px-20 border-t border-slate-800">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
         <div className="space-y-6">
           <div className="flex items-center gap-2">
-            <div className="bg-indigo-600 p-1.5 rounded-lg">
+            <div className="bg-[#6C2BD9] p-1.5 rounded-lg">
               <Mic2 className="text-white w-5 h-5" />
             </div>
             <span className="text-2xl font-black text-white tracking-tighter">DUSHOW</span>
@@ -19,30 +19,30 @@ const Footer = () => {
             A maior plataforma de conexão e confiança para o mercado de eventos da América Latina. Tecnologia a serviço da arte e da segurança.
           </p>
           <div className="flex gap-4">
-            <a href="#" className="hover:text-indigo-400 transition-colors"><Instagram size={20} /></a>
-            <a href="#" className="hover:text-indigo-400 transition-colors"><Twitter size={20} /></a>
-            <a href="#" className="hover:text-indigo-400 transition-colors"><Linkedin size={20} /></a>
-            <a href="#" className="hover:text-indigo-400 transition-colors"><Youtube size={20} /></a>
+            <a href="#" className="hover:text-[#6C2BD9] transition-colors"><Instagram size={20} /></a>
+            <a href="#" className="hover:text-[#6C2BD9] transition-colors"><Twitter size={20} /></a>
+            <a href="#" className="hover:text-[#6C2BD9] transition-colors"><Linkedin size={20} /></a>
+            <a href="#" className="hover:text-[#6C2BD9] transition-colors"><Youtube size={20} /></a>
           </div>
         </div>
 
         <div>
           <h4 className="font-black text-white mb-6 uppercase text-xs tracking-widest">Plataforma</h4>
           <ul className="space-y-4 text-sm font-medium">
-            <li><Link to="/client/discovery" className="hover:text-indigo-400 transition-colors">Buscar Artistas</Link></li>
-            <li><Link to="/marketplace" className="hover:text-indigo-400 transition-colors">Marketplace</Link></li>
-            <li><Link to="/services" className="hover:text-indigo-400 transition-colors">Nossos Serviços</Link></li>
-            <li><Link to="/register" className="hover:text-indigo-400 transition-colors">Criar Perfil Profissional</Link></li>
+            <li><Link to="/client/discovery" className="hover:text-[#6C2BD9] transition-colors">Buscar Artistas</Link></li>
+            <li><Link to="/marketplace" className="hover:text-[#6C2BD9] transition-colors">Marketplace</Link></li>
+            <li><Link to="/services" className="hover:text-[#6C2BD9] transition-colors">Nossos Serviços</Link></li>
+            <li><Link to="/register" className="hover:text-[#6C2BD9] transition-colors">Criar Perfil Profissional</Link></li>
           </ul>
         </div>
 
         <div>
           <h4 className="font-black text-white mb-6 uppercase text-xs tracking-widest">Suporte & Legal</h4>
           <ul className="space-y-4 text-sm font-medium">
-            <li><a href="#" className="hover:text-indigo-400 transition-colors">Central de Ajuda</a></li>
-            <li><a href="#" className="hover:text-indigo-400 transition-colors">Termos de Uso</a></li>
-            <li><a href="#" className="hover:text-indigo-400 transition-colors">Privacidade</a></li>
-            <li><a href="#" className="hover:text-indigo-400 transition-colors">Segurança do Pagamento</a></li>
+            <li><a href="#" className="hover:text-[#6C2BD9] transition-colors">Central de Ajuda</a></li>
+            <li><a href="#" className="hover:text-[#6C2BD9] transition-colors">Termos de Uso</a></li>
+            <li><a href="#" className="hover:text-[#6C2BD9] transition-colors">Privacidade</a></li>
+            <li><a href="#" className="hover:text-[#6C2BD9] transition-colors">Segurança do Pagamento</a></li>
           </ul>
         </div>
 
@@ -53,9 +53,9 @@ const Footer = () => {
             <input 
               type="email" 
               placeholder="Seu e-mail" 
-              className="bg-slate-800 border-none rounded-xl px-4 py-2 text-sm w-full focus:ring-2 focus:ring-indigo-500 outline-none" 
+              className="bg-slate-800 border-none rounded-xl px-4 py-2 text-sm w-full focus:ring-2 focus:ring-[#6C2BD9] outline-none" 
             />
-            <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-bold text-sm transition-colors">OK</button>
+            <button className="bg-[#6C2BD9] hover:bg-[#5b24b8] text-white px-4 py-2 rounded-xl font-bold text-sm transition-colors">OK</button>
           </div>
         </div>
       </div>

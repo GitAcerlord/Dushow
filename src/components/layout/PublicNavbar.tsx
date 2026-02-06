@@ -8,33 +8,33 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const PublicNavbar = () => {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
-      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100">
+      <div className="max-w-7xl mx-auto px-6 md:px-20 h-20 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2 group">
-          <div className="bg-indigo-600 p-2 rounded-xl group-hover:rotate-12 transition-transform">
+          <div className="bg-[#6C2BD9] p-2 rounded-xl group-hover:rotate-12 transition-transform shadow-lg shadow-purple-200">
             <Mic2 className="text-white w-6 h-6" />
           </div>
-          <span className="text-2xl font-black tracking-tighter text-slate-900">DUSHOW</span>
+          <span className="text-2xl font-black tracking-tighter text-[#0F172A]">DUSHOW</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-10">
-          <Link to="/services" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Serviços</Link>
-          <Link to="/marketplace" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Marketplace</Link>
-          <Link to="/about" className="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Sobre Nós</Link>
+          <Link to="/services" className="text-sm font-semibold text-[#64748B] hover:text-[#6C2BD9] transition-colors">Serviços</Link>
+          <Link to="/marketplace" className="text-sm font-semibold text-[#64748B] hover:text-[#6C2BD9] transition-colors">Marketplace</Link>
+          <Link to="/about" className="text-sm font-semibold text-[#64748B] hover:text-[#6C2BD9] transition-colors">Sobre Nós</Link>
         </div>
 
         <div className="flex items-center gap-4">
-          <Button variant="ghost" asChild className="hidden sm:flex font-bold text-slate-600">
+          <Button variant="ghost" asChild className="hidden sm:flex font-bold text-[#64748B]">
             <Link to="/login">Entrar</Link>
           </Button>
-          <Button className="bg-indigo-600 hover:bg-indigo-700 rounded-xl px-6 font-bold shadow-lg shadow-indigo-100" asChild>
+          <Button className="bg-[#6C2BD9] hover:bg-[#5b24b8] rounded-xl px-6 font-bold shadow-lg shadow-purple-100" asChild>
             <Link to="/register">Criar Conta</Link>
           </Button>
           
           <div className="md:hidden">
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon"><Menu /></Button>
+                <Button variant="ghost" size="icon"><Menu className="text-[#0F172A]" /></Button>
               </SheetTrigger>
               <SheetContent>
                 <div className="flex flex-col gap-6 mt-10">
