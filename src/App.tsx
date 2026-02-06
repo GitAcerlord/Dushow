@@ -47,6 +47,7 @@ import ClientEvents from "./pages/client/Events";
 import ClientMessages from "./pages/client/Messages";
 import Favorites from "./pages/client/Favorites";
 import ClientPayments from "./pages/client/Payments";
+import ClientProfile from "./pages/client/Profile";
 
 const queryClient = new QueryClient();
 
@@ -105,6 +106,7 @@ const App = () => (
             </ProtectedRoute>
           }>
             <Route index element={<ClientDashboard />} />
+            <Route path="profile" element={<ClientProfile />} />
             <Route path="discovery" element={<Discovery />} />
             <Route path="checkout" element={<Checkout />} />
             <Route path="events" element={<ClientEvents />} />

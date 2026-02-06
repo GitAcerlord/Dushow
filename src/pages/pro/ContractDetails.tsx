@@ -8,14 +8,18 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { 
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger 
+} from "@/components/ui/dialog";
 import { 
   FileText, Loader2, ArrowLeft, DollarSign, MessageSquare, CheckCircle2, 
-  XCircle, CreditCard, History, Clock, ShieldCheck, PenTool, AlertTriangle,
-  User, Briefcase
+  XCircle, History, Clock, ShieldCheck, PenTool, User, Briefcase, MapPin
 } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from "@/utils/toast";
 import { cn } from "@/lib/utils";
+import { getSafeImageUrl } from '@/utils/url-validator';
 
 const ContractDetails = () => {
   const { id } = useParams();
@@ -55,8 +59,8 @@ const ContractDetails = () => {
       .from('contracts')
       .select(`
         *,
-        client:profiles!contracts_client_id_fkey(full_name, id, avatar_url),
-        pro:profiles!contracts_pro_id_fkey(full_name, id, avatar_url),
+        client:profiles!contracts_client_id_fkey(*),
+        pro:profiles!contracts_pro_id_fkey(*),
         current_version:contract_versions!current_version_id(*)
       `)
       .eq('id', id)
@@ -102,12 +106,11 @@ const ContractDetails = () => {
 
   const hasSigned = signatures.some(s => s.user_id === user?.id);
   const isLocked = contract.status === 'SIGNED' || contract.status === 'COMPLETED' || contract.status === 'CANCELED';
-  
-  // Regra: Só pode aceitar se a versão atual NÃO foi criada por você
   const canAccept = contract.status === 'PENDING' && contract.current_version?.created_by_id !== user?.id;
-  
-  // Regra: Só pode assinar se o contrato foi aceito e você ainda não assinou
   const canSign = contract.status === 'ACCEPTED' && !hasSigned;
+
+  // Perfil da outra parte para visualização
+  const otherParty = userRole === 'PRO' ? contract.client : contract.pro;
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-8">
@@ -130,31 +133,67 @@ const ContractDetails = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           <Card className="p-8 md:p-12 border-none shadow-2xl bg-white rounded-[2.5rem] space-y-10 relative overflow-hidden">
-            {isLocked && <div className="absolute top-10 right-10 rotate-12 border-4 border-indigo-600 text-indigo-600 px-6 py-2 font-black text-2xl opacity-20 uppercase">Documento Selado</div>}
-            
             <div className="flex items-center gap-4 border-b pb-8">
               <div className="bg-indigo-600 p-3 rounded-2xl text-white shadow-lg">
                 <FileText className="w-8 h-8" />
               </div>
               <div>
                 <h2 className="text-xl md:text-2xl font-black text-slate-900 uppercase">Contrato de Prestação de Serviços</h2>
-                <p className="text-xs text-slate-400">ID: {contract.id.split('-')[0]} | Versão: {contract.current_version?.id.split('-')[0] || 'v1'}</p>
+                <p className="text-xs text-slate-400">ID: {contract.id.split('-')[0]}</p>
               </div>
             </div>
 
             <div className="space-y-8 text-slate-700">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <Label className="text-[10px] font-black uppercase text-slate-400 flex items-center gap-1 mb-2">
-                    <Briefcase className="w-3 h-3" /> Contratante
-                  </Label>
-                  <p className="font-bold text-slate-900">{contract.client?.full_name}</p>
-                </div>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors">
+                      <Label className="text-[10px] font-black uppercase text-slate-400 flex items-center gap-1 mb-2">
+                        <Briefcase className="w-3 h-3" /> Contratante (Clique para ver perfil)
+                      </Label>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-6 h-6">
+                          <AvatarImage src={getSafeImageUrl(contract.client?.avatar_url, '')} />
+                          <AvatarFallback>{contract.client?.full_name?.[0]}</AvatarFallback>
+                        </Avatar>
+                        <p className="font-bold text-slate-900">{contract.client?.full_name}</p>
+                      </div>
+                    </div>
+                  </DialogTrigger>
+                  <DialogContent className="rounded-[2rem] max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Perfil do Contratante</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-6 py-4 text-center">
+                      <Avatar className="w-24 h-24 mx-auto border-4 border-white shadow-lg">
+                        <AvatarImage src={getSafeImageUrl(contract.client?.avatar_url, '')} />
+                        <AvatarFallback>{contract.client?.full_name?.[0]}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h3 className="text-xl font-black text-slate-900">{contract.client?.full_name}</h3>
+                        <p className="text-sm text-slate-500 flex items-center justify-center gap-1 mt-1">
+                          <MapPin className="w-3 h-3" /> {contract.client?.location || "Local não informado"}
+                        </p>
+                      </div>
+                      <div className="p-4 bg-slate-50 rounded-2xl text-sm text-slate-600 text-left">
+                        <p className="font-bold text-[10px] uppercase text-slate-400 mb-2">Sobre</p>
+                        {contract.client?.bio || "Este contratante ainda não adicionou uma biografia."}
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                   <Label className="text-[10px] font-black uppercase text-slate-400 flex items-center gap-1 mb-2">
                     <User className="w-3 h-3" /> Artista
                   </Label>
-                  <p className="font-bold text-slate-900">{contract.pro?.full_name}</p>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="w-6 h-6">
+                      <AvatarImage src={getSafeImageUrl(contract.pro?.avatar_url, '')} />
+                      <AvatarFallback>{contract.pro?.full_name?.[0]}</AvatarFallback>
+                    </Avatar>
+                    <p className="font-bold text-slate-900">{contract.pro?.full_name}</p>
+                  </div>
                 </div>
               </div>
 
@@ -177,57 +216,11 @@ const ContractDetails = () => {
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase text-slate-400">Termos e Condições</Label>
                 <div className="p-6 bg-slate-50 rounded-2xl text-sm leading-relaxed text-slate-600 min-h-[150px] border border-slate-100">
-                  {contract.current_version?.terms || "Os termos padrão da plataforma DUSHOW se aplicam a este contrato. O artista compromete-se a realizar a performance conforme acordado, e o contratante a fornecer a infraestrutura necessária."}
+                  {contract.current_version?.terms || "Os termos padrão da plataforma DUSHOW se aplicam a este contrato."}
                 </div>
-              </div>
-            </div>
-
-            <div className="pt-10 border-t grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-3">
-                <p className="text-[10px] font-black uppercase text-slate-400">Assinatura Contratante</p>
-                {signatures.find(s => s.user_role === 'CLIENT') ? (
-                  <div className="flex items-center gap-2 text-emerald-600 font-bold text-sm bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                    <CheckCircle2 className="w-4 h-4" /> Assinado Digitalmente
-                  </div>
-                ) : (
-                  <div className="text-slate-300 text-sm italic p-3 border border-dashed rounded-xl">Aguardando assinatura do contratante...</div>
-                )}
-              </div>
-              <div className="space-y-3">
-                <p className="text-[10px] font-black uppercase text-slate-400">Assinatura Artista</p>
-                {signatures.find(s => s.user_role === 'PRO') ? (
-                  <div className="flex items-center gap-2 text-emerald-600 font-bold text-sm bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                    <CheckCircle2 className="w-4 h-4" /> Assinado Digitalmente
-                  </div>
-                ) : (
-                  <div className="text-slate-300 text-sm italic p-3 border border-dashed rounded-xl">Aguardando assinatura do artista...</div>
-                )}
               </div>
             </div>
           </Card>
-
-          <div className="space-y-6">
-            <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
-              <History className="w-5 h-5 text-indigo-600" />
-              Linha do Tempo do Contrato
-            </h3>
-            <div className="space-y-4 relative before:absolute before:left-6 before:top-0 before:bottom-0 before:w-0.5 before:bg-slate-200">
-              {history.map((item) => (
-                <div key={item.id} className="relative pl-12">
-                  <div className="absolute left-4 top-1 w-4 h-4 rounded-full bg-white border-4 border-indigo-600 z-10"></div>
-                  <Card className="p-4 border-none shadow-sm bg-white rounded-2xl">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-sm font-bold text-slate-900">{item.action.replace('_', ' ')}</p>
-                        <p className="text-xs text-slate-500">{new Date(item.created_at).toLocaleString()}</p>
-                      </div>
-                      <Badge variant="outline" className="text-[10px]">{item.to_status}</Badge>
-                    </div>
-                  </Card>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
         <div className="space-y-6">
@@ -245,27 +238,12 @@ const ContractDetails = () => {
               )}
 
               {canSign && (
-                <div className="space-y-4">
-                  <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3">
-                    <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0" />
-                    <p className="text-[10px] text-amber-800 leading-relaxed">
-                      Ao assinar, você sela juridicamente este acordo. O valor de <strong>R$ {Number(contract.value).toLocaleString('pt-BR')}</strong> será processado conforme as regras da plataforma.
-                    </p>
-                  </div>
-                  <Button 
-                    onClick={() => handleAction('SIGN')} 
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 h-14 rounded-xl gap-2 font-black text-lg shadow-lg"
-                  >
-                    <PenTool className="w-5 h-5" /> Assinar Contrato
-                  </Button>
-                </div>
-              )}
-
-              {contract.status === 'ACCEPTED' && hasSigned && (
-                <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 text-center">
-                  <Clock className="w-6 h-6 text-blue-600 mx-auto mb-2" />
-                  <p className="text-xs text-blue-800 font-bold">Você já assinou. Aguardando a outra parte assinar para selar o contrato.</p>
-                </div>
+                <Button 
+                  onClick={() => handleAction('SIGN')} 
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 h-14 rounded-xl gap-2 font-black text-lg shadow-lg"
+                >
+                  <PenTool className="w-5 h-5" /> Assinar Contrato
+                </Button>
               )}
 
               {!hasSigned && (
@@ -285,48 +263,6 @@ const ContractDetails = () => {
               >
                 <XCircle className="w-4 h-4" /> Cancelar Negociação
               </Button>
-            </Card>
-          )}
-
-          {isNegotiating && (
-            <Card className="p-8 border-none shadow-xl bg-slate-900 text-white rounded-[2rem] space-y-6">
-              <h3 className="font-black flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-indigo-400" />
-                Nova Contraproposta
-              </h3>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase text-slate-400">Novo Valor (R$)</Label>
-                  <Input 
-                    type="number" 
-                    value={formData.value} 
-                    onChange={(e) => setFormData({...formData, value: e.target.value})} 
-                    className="h-12 bg-white/10 border-none rounded-xl text-white"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase text-slate-400">Data do Evento</Label>
-                  <Input 
-                    type="datetime-local" 
-                    value={formData.event_date} 
-                    onChange={(e) => setFormData({...formData, event_date: e.target.value})} 
-                    className="h-12 bg-white/10 border-none rounded-xl text-white"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase text-slate-400">Termos Adicionais</Label>
-                  <Textarea 
-                    placeholder="Ex: Rider técnico, alimentação, transporte..." 
-                    value={formData.terms} 
-                    onChange={(e) => setFormData({...formData, terms: e.target.value})}
-                    className="bg-white/10 border-none rounded-xl min-h-[100px] text-white"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={() => setIsNegotiating(false)} variant="ghost" className="flex-1 text-white">Voltar</Button>
-                  <Button onClick={() => handleAction('COUNTER_PROPOSAL', formData)} className="bg-indigo-600 flex-1 font-bold">Enviar</Button>
-                </div>
-              </div>
             </Card>
           )}
         </div>

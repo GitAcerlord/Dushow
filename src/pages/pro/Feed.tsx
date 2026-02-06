@@ -56,9 +56,8 @@ const Feed = () => {
   const handlePost = async () => {
     if (!postContent.trim() || !userProfile) return;
 
-    // SECURITY FIX: Validate post image URL
     if (postImage && !isValidImageUrl(postImage)) {
-      showError("URL de imagem não permitida. Use domínios confiáveis.");
+      showError("URL de imagem não permitida.");
       return;
     }
 
@@ -102,8 +101,10 @@ const Feed = () => {
     try {
       const { error } = await supabase.from('posts').delete().eq('id', postId);
       if (error) throw error;
+      
+      // Atualiza o estado local imediatamente
+      setPosts(prev => prev.filter(p => p.id !== postId));
       showSuccess("Post removido.");
-      setPosts(posts.filter(p => p.id !== postId));
     } catch (error: any) {
       showError("Erro ao excluir post.");
     }
@@ -139,7 +140,7 @@ const Feed = () => {
                 <ImageIcon className="w-3 h-3" /> URL da Imagem (opcional)
               </div>
               <Input 
-                placeholder="https://images.unsplash.com/..." 
+                placeholder="https://..." 
                 value={postImage} 
                 onChange={(e) => setPostImage(e.target.value)}
                 className="bg-slate-50 border-none rounded-xl h-8 text-xs"
@@ -190,9 +191,9 @@ const Feed = () => {
           </div>
           <div className="px-4 pb-4 space-y-3">
             <p className="text-slate-700 text-sm whitespace-pre-wrap">{post.content}</p>
-            {post.image_url && isValidImageUrl(post.image_url) && (
+            {post.image_url && (
               <div className="rounded-xl overflow-hidden border border-slate-100">
-                <img src={post.image_url} alt="Post" className="w-full h-auto max-h-96 object-cover" />
+                <img src={getSafeImageUrl(post.image_url, '')} alt="Post" className="w-full h-auto max-h-96 object-cover" />
               </div>
             )}
           </div>
