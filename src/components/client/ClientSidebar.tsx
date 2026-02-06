@@ -11,7 +11,8 @@ import {
   LayoutDashboard,
   LogOut,
   Mic2,
-  UserCircle
+  UserCircle,
+  Rss
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -20,6 +21,7 @@ import { showSuccess } from '@/utils/toast';
 const menuItems = [
   { icon: LayoutDashboard, label: 'Meu Painel', path: '/client' },
   { icon: UserCircle, label: 'Meu Perfil', path: '/client/profile' },
+  { icon: Rss, label: 'Feed Social', path: '/client/feed' },
   { icon: Search, label: 'Buscar Artistas', path: '/client/discovery' },
   { icon: Calendar, label: 'Meus Eventos', path: '/client/events' },
   { icon: MessageSquare, label: 'Mensagens', path: '/client/messages' },

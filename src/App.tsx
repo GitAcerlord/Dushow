@@ -48,6 +48,7 @@ import ClientMessages from "./pages/client/Messages";
 import Favorites from "./pages/client/Favorites";
 import ClientPayments from "./pages/client/Payments";
 import ClientProfile from "./pages/client/Profile";
+import ClientFeed from "./pages/client/Feed";
 
 const queryClient = new QueryClient();
 
@@ -107,6 +108,7 @@ const App = () => (
           }>
             <Route index element={<ClientDashboard />} />
             <Route path="profile" element={<ClientProfile />} />
+            <Route path="feed" element={<ClientFeed />} />
             <Route path="discovery" element={<Discovery />} />
             <Route path="checkout" element={<Checkout />} />
             <Route path="events" element={<ClientEvents />} />
