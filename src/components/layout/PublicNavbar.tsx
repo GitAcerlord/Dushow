@@ -19,7 +19,6 @@ const PublicNavbar = () => {
 
         <div className="hidden md:flex items-center gap-10">
           <Link to="/services" className="text-sm font-semibold text-[#64748B] hover:text-[#6C2BD9] transition-colors">Serviços</Link>
-          <Link to="/marketplace" className="text-sm font-semibold text-[#64748B] hover:text-[#6C2BD9] transition-colors">Marketplace</Link>
           <Link to="/about" className="text-sm font-semibold text-[#64748B] hover:text-[#6C2BD9] transition-colors">Sobre Nós</Link>
         </div>
 
@@ -39,7 +38,6 @@ const PublicNavbar = () => {
               <SheetContent>
                 <div className="flex flex-col gap-6 mt-10">
                   <Link to="/services" className="text-lg font-bold">Serviços</Link>
-                  <Link to="/marketplace" className="text-lg font-bold">Marketplace</Link>
                   <Link to="/about" className="text-lg font-bold">Sobre Nós</Link>
                   <hr />
                   <Link to="/login" className="text-lg font-bold">Entrar</Link>

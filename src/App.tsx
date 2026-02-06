@@ -11,7 +11,6 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import About from "./pages/About";
-import Marketplace from "./pages/Marketplace";
 import Services from "./pages/Services";
 
 // Admin
@@ -65,7 +64,6 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/about" element={<About />} />
-          <Route path="/marketplace" element={<Marketplace />} />
           <Route path="/services" element={<Services />} />
           
           {/* Painel Administrativo */}

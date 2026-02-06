@@ -59,7 +59,6 @@ const PostCard = ({ post, currentUserId, onDelete, onEdit }: PostCardProps) => {
   };
 
   const handleViewProfile = () => {
-    // Se for contratante, navega para o perfil público do artista
     navigate(`/client/artist/${post.author_id}`);
   };
 
