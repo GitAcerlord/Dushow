@@ -15,8 +15,14 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { contractId, action, userId } = await req.json()
-    console.log(`[contract-state-machine] Action: ${action} | Contract: ${contractId} | User: ${userId}`);
+    const body = await req.json()
+    const { contractId, action, userId } = body
+    
+    console.log(`[contract-state-machine] Processando: ${action} para Contrato: ${contractId} (User: ${userId})`);
+
+    if (!contractId || !action || !userId) {
+      throw new Error("Parâmetros ausentes: contractId, action e userId são obrigatórios.");
+    }
 
     // 1. Buscar estado atual do contrato
     const { data: contract, error: fetchError } = await supabaseClient
@@ -25,7 +31,10 @@ serve(async (req) => {
       .eq('id', contractId)
       .single()
 
-    if (fetchError || !contract) throw new Error("Contrato não localizado.");
+    if (fetchError || !contract) {
+      console.error("[contract-state-machine] Contrato não encontrado:", contractId);
+      throw new Error("Contrato não localizado no banco de dados.");
+    }
 
     let nextStatus = contract.status;
     const currentStatus = contract.status;
@@ -33,32 +42,28 @@ serve(async (req) => {
     // 2. MÁQUINA DE ESTADOS - Validação de Transições
     switch (action) {
       case 'ACCEPT':
-        // Aceita se estiver CREATED ou PENDING (após negociação)
+        // Aceita se estiver CREATED ou PENDING
         if (currentStatus !== 'CREATED' && currentStatus !== 'PENDING') {
-          throw new Error(`Transição inválida: Status atual é ${currentStatus}`);
+          throw new Error(`Transição inválida: O contrato está como ${currentStatus} e não pode ser aceito.`);
         }
-        // Verifica se quem está aceitando é o profissional do contrato
+        // Validação de Identidade: Apenas o profissional (pro_id) pode aceitar
         if (userId !== contract.pro_id) {
-          throw new Error("Não autorizado: Apenas o profissional pode aceitar.");
+          throw new Error("Ação negada: Apenas o profissional designado pode aceitar este contrato.");
         }
         nextStatus = 'ACCEPTED';
         break;
 
       case 'REJECT':
         if (currentStatus !== 'CREATED' && currentStatus !== 'PENDING') {
-          throw new Error("Transição inválida para rejeição.");
+          throw new Error(`Transição inválida: O contrato está como ${currentStatus} e não pode ser rejeitado.`);
         }
         nextStatus = 'REJECTED';
         break;
 
-      case 'SIGN':
-        if (currentStatus !== 'ACCEPTED') throw new Error("Contrato precisa ser aceito antes de assinar.");
-        nextStatus = 'PENDING_SIGNATURE';
-        break;
-
       case 'COMPLETE':
-        if (currentStatus !== 'PAID' && currentStatus !== 'PENDING_SIGNATURE') {
-          throw new Error("Apenas contratos pagos ou assinados podem ser concluídos.");
+        // Apenas contratos pagos (PAID) podem ser concluídos
+        if (currentStatus !== 'PAID') {
+          throw new Error("Transição inválida: O contrato precisa estar PAGO para ser concluído.");
         }
         nextStatus = 'COMPLETED';
         
@@ -75,7 +80,7 @@ serve(async (req) => {
           { contract_id: contractId, user_id: contract.pro_id, amount: platformFee, type: 'PLATFORM_FEE', description: `Comissão DUSHOW: ${contract.event_name}` }
         ]);
 
-        if (ledgerError) console.error("[contract-state-machine] Ledger Error:", ledgerError);
+        if (ledgerError) console.error("[contract-state-machine] Erro ao gerar Ledger:", ledgerError);
 
         // Atualizar XP do Artista
         const { data: proProfile } = await supabaseClient.from('profiles').select('xp_total').eq('id', contract.pro_id).single();
@@ -83,7 +88,7 @@ serve(async (req) => {
         break;
 
       default:
-        throw new Error("Ação desconhecida.");
+        throw new Error(`Ação desconhecida: ${action}`);
     }
 
     // 3. Persistência Real no Banco
@@ -94,13 +99,15 @@ serve(async (req) => {
 
     if (updateError) throw updateError;
 
+    console.log(`[contract-state-machine] Sucesso: ${currentStatus} -> ${nextStatus}`);
+
     return new Response(JSON.stringify({ success: true, status: nextStatus }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
   } catch (error: any) {
-    console.error("[contract-state-machine] Error:", error.message);
+    console.error("[contract-state-machine] Falha Crítica:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
       headers: corsHeaders

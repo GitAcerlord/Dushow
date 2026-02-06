@@ -56,7 +56,12 @@ const ProContracts = () => {
         }
       });
 
-      if (error) throw error;
+      // Tratamento de erro detalhado para FunctionsHttpError
+      if (error) {
+        const errorBody = await error.context?.json();
+        throw new Error(errorBody?.error || error.message);
+      }
+
       if (data?.error) throw new Error(data.error);
 
       showSuccess(`Contrato atualizado para: ${data.status}`);
@@ -79,63 +84,69 @@ const ProContracts = () => {
       </div>
 
       <div className="grid gap-6">
-        {contracts.map((contract) => (
-          <Card key={contract.id} className="p-6 border-none shadow-sm bg-white flex flex-col md:flex-row gap-6 items-start md:items-center">
-            <div className="flex-1 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-slate-900">{contract.event_name}</h3>
-                <Badge className={cn(
-                  "uppercase text-[10px] font-bold",
-                  contract.status === 'COMPLETED' ? 'bg-emerald-500 text-white' : 
-                  contract.status === 'ACCEPTED' ? 'bg-blue-500 text-white' :
-                  contract.status === 'REJECTED' ? 'bg-red-500 text-white' : 
-                  contract.status === 'PAID' ? 'bg-indigo-500 text-white' : 'bg-amber-500 text-white'
-                )}>
-                  {contract.status}
-                </Badge>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-500">
-                <div className="flex items-center gap-2"><Calendar className="w-4 h-4" /> {new Date(contract.event_date).toLocaleDateString()}</div>
-                <div className="flex items-center gap-2 font-bold text-indigo-600"><DollarSign className="w-4 h-4" /> R$ {Number(contract.value).toLocaleString('pt-BR')}</div>
-              </div>
-            </div>
-
-            <div className="flex flex-row md:flex-col gap-2 w-full md:w-auto">
-              {(contract.status === 'CREATED' || contract.status === 'PENDING') && (
-                <>
-                  <Button 
-                    disabled={processingId === contract.id}
-                    onClick={() => handleAction(contract.id, 'ACCEPT')} 
-                    className="bg-indigo-600 flex-1"
-                  >
-                    {processingId === contract.id ? <Loader2 className="animate-spin" /> : "Aceitar"}
-                  </Button>
-                  <Button 
-                    disabled={processingId === contract.id}
-                    onClick={() => handleAction(contract.id, 'REJECT')} 
-                    variant="outline" 
-                    className="text-red-600 border-red-100 flex-1"
-                  >
-                    Rejeitar
-                  </Button>
-                </>
-              )}
-              {contract.status === 'PAID' && (
-                <Button 
-                  disabled={processingId === contract.id}
-                  onClick={() => handleAction(contract.id, 'COMPLETE')} 
-                  className="bg-emerald-600 flex-1"
-                >
-                  Concluir Show & Liberar Saldo
-                </Button>
-              )}
-              <Button variant="ghost" asChild className="text-indigo-600 gap-2 flex-1">
-                <Link to={`/pro/contracts/${contract.id}`}><FileText className="w-4 h-4" /> Detalhes</Link>
-              </Button>
-            </div>
+        {contracts.length === 0 ? (
+          <Card className="p-12 text-center text-slate-400 font-medium border-dashed border-2">
+            Nenhum contrato encontrado.
           </Card>
-        ))}
+        ) : (
+          contracts.map((contract) => (
+            <Card key={contract.id} className="p-6 border-none shadow-sm bg-white flex flex-col md:flex-row gap-6 items-start md:items-center rounded-[2rem]">
+              <div className="flex-1 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-slate-900">{contract.event_name}</h3>
+                  <Badge className={cn(
+                    "uppercase text-[10px] font-bold px-3 py-1 rounded-full",
+                    contract.status === 'COMPLETED' ? 'bg-emerald-500 text-white' : 
+                    contract.status === 'ACCEPTED' ? 'bg-blue-500 text-white' :
+                    contract.status === 'REJECTED' ? 'bg-red-500 text-white' : 
+                    contract.status === 'PAID' ? 'bg-indigo-500 text-white' : 'bg-amber-500 text-white'
+                  )}>
+                    {contract.status}
+                  </Badge>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-500">
+                  <div className="flex items-center gap-2"><Calendar className="w-4 h-4" /> {new Date(contract.event_date).toLocaleDateString()}</div>
+                  <div className="flex items-center gap-2 font-bold text-indigo-600"><DollarSign className="w-4 h-4" /> R$ {Number(contract.value).toLocaleString('pt-BR')}</div>
+                </div>
+              </div>
+
+              <div className="flex flex-row md:flex-col gap-2 w-full md:w-auto">
+                {(contract.status === 'CREATED' || contract.status === 'PENDING') && (
+                  <>
+                    <Button 
+                      disabled={processingId === contract.id}
+                      onClick={() => handleAction(contract.id, 'ACCEPT')} 
+                      className="bg-indigo-600 flex-1 rounded-xl"
+                    >
+                      {processingId === contract.id ? <Loader2 className="animate-spin" /> : "Aceitar"}
+                    </Button>
+                    <Button 
+                      disabled={processingId === contract.id}
+                      onClick={() => handleAction(contract.id, 'REJECT')} 
+                      variant="outline" 
+                      className="text-red-600 border-red-100 flex-1 rounded-xl"
+                    >
+                      Rejeitar
+                    </Button>
+                  </>
+                )}
+                {contract.status === 'PAID' && (
+                  <Button 
+                    disabled={processingId === contract.id}
+                    onClick={() => handleAction(contract.id, 'COMPLETE')} 
+                    className="bg-emerald-600 flex-1 rounded-xl"
+                  >
+                    Concluir Show & Liberar Saldo
+                  </Button>
+                )}
+                <Button variant="ghost" asChild className="text-indigo-600 gap-2 flex-1 rounded-xl">
+                  <Link to={`/pro/contracts/${contract.id}`}><FileText className="w-4 h-4" /> Detalhes</Link>
+                </Button>
+              </div>
+            </Card>
+          ))
+        )}
       </div>
     </div>
   );
