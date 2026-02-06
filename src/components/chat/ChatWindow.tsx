@@ -6,13 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
-  Send, ShieldAlert, Loader2, MoreVertical, FileText, CreditCard
+  Send, ShieldAlert, Loader2, Lock
 } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
-import { scanMessageForBypass } from "@/utils/chat-filter";
 import { showError } from "@/utils/toast";
 
-const ChatWindow = ({ recipientId, recipientName, recipientAvatar, role }: any) => {
+const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }: any) => {
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setInputText] = useState("");
   const [loading, setLoading] = useState(true);
@@ -27,28 +26,25 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, role }: any) 
       if (user && recipientId) {
         fetchMessages(user.id);
         
-        // Inscrição Realtime
         const channel = supabase
-          .channel(`chat:${recipientId}`)
+          .channel(`chat:${contractId}`)
           .on('postgres_changes', { 
             event: 'INSERT', 
             schema: 'public', 
             table: 'messages',
-            filter: `receiver_id=eq.${user.id}`
+            filter: `contract_id=eq.${contractId}`
           }, (payload) => {
-            if (payload.new.sender_id === recipientId) {
+            if (payload.new.sender_id !== user.id) {
               setMessages(prev => [...prev, payload.new]);
             }
           })
           .subscribe();
 
-        return () => {
-          supabase.removeChannel(channel);
-        };
+        return () => { supabase.removeChannel(channel); };
       }
     };
     initChat();
-  }, [recipientId]);
+  }, [recipientId, contractId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -60,7 +56,7 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, role }: any) 
     const { data } = await supabase
       .from('messages')
       .select('*')
-      .or(`and(sender_id.eq.${userId},receiver_id.eq.${recipientId}),and(sender_id.eq.${recipientId},receiver_id.eq.${userId})`)
+      .eq('contract_id', contractId)
       .order('created_at', { ascending: true });
     
     setMessages(data || []);
@@ -70,27 +66,24 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, role }: any) 
   const handleSendMessage = async () => {
     if (!inputText.trim() || !currentUser || sending) return;
 
-    const filter = scanMessageForBypass(inputText);
-    if (!filter.isSafe) {
-      showError(filter.reason || "Mensagem bloqueada.");
-      return;
-    }
-
     setSending(true);
-    const newMessage = {
-      sender_id: currentUser.id,
-      receiver_id: recipientId,
-      content: inputText
-    };
-
     try {
-      const { data, error } = await supabase.from('messages').insert(newMessage).select().single();
+      // CHAMADA AO BACKEND (EDGE FUNCTION)
+      const { data, error } = await supabase.functions.invoke('secure-messaging', {
+        body: {
+          senderId: currentUser.id,
+          receiverId: recipientId,
+          contractId: contractId,
+          content: inputText
+        }
+      });
+
       if (error) throw error;
       
       setMessages(prev => [...prev, data]);
       setInputText("");
     } catch (error: any) {
-      showError("Erro ao enviar mensagem.");
+      showError("Erro ao processar mensagem.");
     } finally {
       setSending(false);
     }
@@ -108,7 +101,7 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, role }: any) 
             <h4 className="font-bold text-slate-900 text-sm">{recipientName}</h4>
             <p className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-              Online
+              Chat Seguro Ativo
             </p>
           </div>
         </div>
@@ -116,7 +109,9 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, role }: any) 
 
       <div className="bg-amber-50 p-2 px-4 flex items-center gap-2 border-b border-amber-100">
         <ShieldAlert className="w-4 h-4 text-amber-600" />
-        <p className="text-[10px] text-amber-800 font-medium">Negocie e pague apenas pela DUSHOW para sua segurança.</p>
+        <p className="text-[10px] text-amber-800 font-medium">
+          A DUSHOW protege sua negociação. Contatos externos são bloqueados até o aceite.
+        </p>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/30">
@@ -129,7 +124,7 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, role }: any) 
                 msg.sender_id === currentUser?.id 
                   ? 'bg-indigo-600 text-white rounded-tr-none' 
                   : 'bg-white text-slate-700 rounded-tl-none border border-slate-100'
-              }`}>
+              } ${msg.is_blocked ? 'bg-red-50 text-red-600 border-red-100 italic' : ''}`}>
                 {msg.content}
                 <p className={`text-[10px] mt-1 text-right ${msg.sender_id === currentUser?.id ? 'text-indigo-200' : 'text-slate-400'}`}>
                   {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
