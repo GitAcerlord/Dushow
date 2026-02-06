@@ -23,9 +23,10 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
     const initChat = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
-      if (user && recipientId) {
+      if (user && contractId) {
         fetchMessages();
         
+        // REAL-TIME SYNC: Escutando mudanças na tabela de mensagens para este contrato
         const channel = supabase
           .channel(`chat:${contractId}`)
           .on('postgres_changes', { 
@@ -34,9 +35,11 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
             table: 'messages',
             filter: `contract_id=eq.${contractId}`
           }, (payload) => {
-            if (payload.new.sender_id !== user.id) {
-              setMessages(prev => [...prev, payload.new]);
-            }
+            // Evita duplicar mensagem enviada pelo próprio usuário (já adicionada no handleSendMessage)
+            setMessages(prev => {
+              const exists = prev.some(m => m.id === payload.new.id);
+              return exists ? prev : [...prev, payload.new];
+            });
           })
           .subscribe();
 
@@ -44,7 +47,7 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
       }
     };
     initChat();
-  }, [recipientId, contractId]);
+  }, [contractId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -53,13 +56,18 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
   }, [messages]);
 
   const fetchMessages = async () => {
-    const { data } = await supabase
+    setLoading(true);
+    const { data, error } = await supabase
       .from('messages')
       .select('*')
       .eq('contract_id', contractId)
       .order('created_at', { ascending: true });
     
-    setMessages(data || []);
+    if (error) {
+      console.error("[ChatWindow] Fetch error:", error);
+    } else {
+      setMessages(data || []);
+    }
     setLoading(false);
   };
 
@@ -68,6 +76,7 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
 
     setSending(true);
     try {
+      // Chamada para Edge Function que lida com segurança e bypass
       const { data, error } = await supabase.functions.invoke('secure-messaging', {
         body: {
           senderId: currentUser.id,
@@ -79,9 +88,11 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
 
       if (error) throw error;
       
+      // Adição otimista na UI
       setMessages(prev => [...prev, data]);
       setInputText("");
     } catch (error: any) {
+      console.error("[ChatWindow] Send error:", error);
       showError("Erro ao processar mensagem.");
     } finally {
       setSending(false);
@@ -113,7 +124,7 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
         </p>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/30">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/30 custom-scrollbar">
         {loading ? (
           <div className="flex justify-center py-10"><Loader2 className="animate-spin text-indigo-600" /></div>
         ) : (

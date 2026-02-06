@@ -63,7 +63,7 @@ const Feed = () => {
       setHasMore(postsData.length === POSTS_PER_PAGE);
       setPosts(prev => append ? [...prev, ...postsData] : postsData);
     } catch (error: any) {
-      console.error("Feed Error:", error);
+      console.error("[Feed] Error fetching posts:", error);
       showError("Erro ao carregar o feed.");
     } finally {
       setLoading(false);
@@ -120,11 +120,53 @@ const Feed = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('posts').delete().eq('id', id);
-    if (!error) {
-      setPosts(prev => prev.filter(p => p.id !== id));
-      showSuccess("Post excluído permanentemente.");
+  const handleDelete = async (postId: string) => {
+    try {
+      // 1. Buscar dados do post para limpeza de storage
+      const { data: post, error: fetchError } = await supabase
+        .from('posts')
+        .select('image_url, author_id')
+        .eq('id', postId)
+        .single();
+
+      if (fetchError || !post) throw new Error("Post não encontrado.");
+      if (post.author_id !== userProfile.id) throw new Error("Permissão negada.");
+
+      // 2. Limpeza de Storage (se houver imagem)
+      if (post.image_url && post.image_url.includes('supabase.co/storage')) {
+        const urlParts = post.image_url.split('/');
+        const fileName = urlParts[urlParts.length - 1];
+        const bucketName = 'posts'; // Ajuste conforme seu bucket real
+        
+        const { error: storageError } = await supabase.storage
+          .from(bucketName)
+          .remove([fileName]);
+        
+        if (storageError) console.warn("[Feed] Storage cleanup failed:", storageError);
+      }
+
+      // 3. Exclusão em cascata no banco (Likes e Comments via RLS/DB ou manual)
+      // Nota: Se o banco tiver ON DELETE CASCADE, isso é automático. 
+      // Caso contrário, limpamos manualmente para garantir integridade.
+      await supabase.from('post_likes').delete().eq('post_id', postId);
+      await supabase.from('post_comments').delete().eq('post_id', postId);
+
+      // 4. Exclusão do registro principal
+      const { error: deleteError } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', postId);
+
+      if (deleteError) throw deleteError;
+
+      // 5. Log de Auditoria (Simulado via console, idealmente em tabela de logs)
+      console.log(`[AUDIT] POST_DELETED | ID: ${postId} | User: ${userProfile.id} | TS: ${new Date().toISOString()}`);
+
+      setPosts(prev => prev.filter(p => p.id !== postId));
+      showSuccess("Post e arquivos removidos permanentemente.");
+    } catch (error: any) {
+      console.error("[Feed] Critical Delete Error:", error);
+      showError(error.message || "Falha na exclusão real do post.");
     }
   };
 

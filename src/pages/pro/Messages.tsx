@@ -23,7 +23,9 @@ const ProMessages = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data: contracts } = await supabase
+    // QUERY SIMÉTRICA: Busca contratos onde o usuário é o profissional
+    // O contract_id serve como o conversation_id
+    const { data: contracts, error } = await supabase
       .from('contracts')
       .select(`
         id,
@@ -36,8 +38,12 @@ const ProMessages = () => {
       .eq('pro_id', user.id)
       .order('created_at', { ascending: false });
 
-    setConversations(contracts || []);
-    if (contracts && contracts.length > 0) setSelectedConv(contracts[0]);
+    if (error) {
+      console.error("[ProMessages] Fetch error:", error);
+    } else {
+      setConversations(contracts || []);
+      if (contracts && contracts.length > 0) setSelectedConv(contracts[0]);
+    }
     setLoading(false);
   };
 
