@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { 
   CreditCard, Lock, ShieldCheck, ArrowLeft, Loader2, 
-  CheckCircle2, Sparkles
+  CheckCircle2
 } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from "@/utils/toast";
@@ -36,18 +36,14 @@ const PlanCheckout = () => {
     setLoading(true);
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
-      // Simulação de processamento de gateway
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // ATUALIZAÇÃO REAL NO BANCO
-      const { error } = await supabase.from('profiles').update({ 
-        plan_tier: plan.id,
-        is_verified: ['premium', 'elite'].includes(plan.id),
-        is_superstar: plan.id === 'elite'
-      }).eq('id', user.id);
+      // SECURITY: We no longer update the profile directly from the client.
+      // We call a secure Edge Function that handles the logic server-side.
+      const { data, error } = await supabase.functions.invoke('process-subscription', {
+        body: { 
+          planId: plan.id,
+          planName: plan.name
+        }
+      });
 
       if (error) throw error;
 
@@ -59,7 +55,7 @@ const PlanCheckout = () => {
       }, 2500);
 
     } catch (error: any) {
-      showError(error.message);
+      showError(error.message || "Erro ao processar assinatura.");
     } finally {
       setLoading(false);
     }
@@ -93,7 +89,7 @@ const PlanCheckout = () => {
                 <CreditCard className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-2xl font-black text-slate-900">Pagamento</h2>
+                <h2 className="text-2xl font-black text-slate-900">Pagamento Seguro</h2>
                 <p className="text-sm text-slate-500">Ative seu plano {plan.name}.</p>
               </div>
             </div>
@@ -125,6 +121,10 @@ const PlanCheckout = () => {
           <div className="pt-4 border-t border-white/10 flex justify-between items-end">
             <span className="font-bold">Total</span>
             <span className="text-3xl font-black text-indigo-400">{plan.price}</span>
+          </div>
+          <div className="mt-6 flex items-center gap-2 text-[10px] text-slate-400">
+            <Lock className="w-3 h-3" />
+            Processamento criptografado via backend seguro.
           </div>
         </Card>
       </div>

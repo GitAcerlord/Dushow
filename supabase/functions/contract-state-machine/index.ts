@@ -15,9 +15,15 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { contractId, action, userId, payload } = await req.json()
+    // SECURITY: Verify JWT and get actual User ID
+    const authHeader = req.headers.get('Authorization')!
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
+    if (authError || !user) throw new Error("Unauthorized access")
+
+    const { contractId, action, payload } = await req.json()
+    const userId = user.id // Use verified ID from JWT
     
-    // 1. Buscar contrato e versão atual
     const { data: contract, error: fetchError } = await supabaseClient
       .from('contracts')
       .select('*, current_version:contract_versions!current_version_id(*)')
@@ -26,22 +32,22 @@ serve(async (req) => {
 
     if (fetchError || !contract) throw new Error("Contrato não localizado.");
 
+    // Ensure the user is part of the contract
+    if (contract.client_id !== userId && contract.pro_id !== userId) {
+      throw new Error("Acesso negado a este contrato.");
+    }
+
     let nextStatus = contract.status;
     let ledgerStatus: string | null = null;
     const oldStatus = contract.status;
 
-    // 2. MÁQUINA DE ESTADOS
     if (action === 'COUNTER_PROPOSAL') {
       if (contract.status === 'SIGNED' || contract.status === 'COMPLETED') {
         throw new Error("Contrato assinado não pode ser alterado.");
       }
-
-      // Desativar versão antiga
       if (contract.current_version_id) {
         await supabaseClient.from('contract_versions').update({ is_active: false }).eq('id', contract.current_version_id);
       }
-
-      // Criar nova versão
       const { data: newVersion, error: vError } = await supabaseClient
         .from('contract_versions')
         .insert({
@@ -56,17 +62,13 @@ serve(async (req) => {
         })
         .select()
         .single();
-
       if (vError) throw vError;
-
-      // Atualizar contrato
       await supabaseClient.from('contracts').update({ 
         current_version_id: newVersion.id,
         status: 'PENDING',
         value: payload.value,
         event_date: payload.event_date
       }).eq('id', contractId);
-
       nextStatus = 'PENDING';
     } 
     else if (action === 'ACCEPT') {
@@ -74,7 +76,6 @@ serve(async (req) => {
       ledgerStatus = 'PREVISTO';
     }
     else if (action === 'SIGN') {
-      // Registrar assinatura
       const { error: sError } = await supabaseClient.from('contract_signatures').insert({
         contract_id: contractId,
         user_id: userId,
@@ -82,15 +83,11 @@ serve(async (req) => {
         ip_address: req.headers.get('x-real-ip') || 'unknown',
         user_agent: req.headers.get('user-agent')
       });
-
       if (sError) throw new Error("Você já assinou este contrato.");
-
-      // Verificar se ambas as partes assinaram
       const { count } = await supabaseClient
         .from('contract_signatures')
         .select('*', { count: 'exact', head: true })
         .eq('contract_id', contractId);
-
       if (count === 2) {
         nextStatus = 'SIGNED';
         ledgerStatus = 'CONFIRMADO';
@@ -105,12 +102,10 @@ serve(async (req) => {
       ledgerStatus = 'CANCELADO';
     }
 
-    // 3. Atualizar Status Final
     if (nextStatus !== oldStatus) {
       await supabaseClient.from('contracts').update({ status: nextStatus }).eq('id', contractId);
     }
 
-    // 4. Registrar Histórico (Imutável)
     await supabaseClient.from('contract_history').insert({
       contract_id: contractId,
       action: action,
@@ -120,7 +115,6 @@ serve(async (req) => {
       metadata: payload
     });
 
-    // 5. Sincronizar Financeiro
     if (ledgerStatus) {
       await supabaseClient.from('financial_ledger').upsert({
         contract_id: contractId,

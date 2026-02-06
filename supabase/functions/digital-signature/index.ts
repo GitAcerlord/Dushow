@@ -15,18 +15,24 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { contractId, userId, role } = await req.json()
+    // SECURITY: Verify JWT
+    const authHeader = req.headers.get('Authorization')!
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
+    if (authError || !user) throw new Error("Unauthorized")
+
+    const { contractId, role } = await req.json()
+    const userId = user.id
     
-    // 1. AUDITORIA: Busca dados imutáveis para o Hash
     const { data: contract, error: fetchError } = await supabaseClient
       .from('contracts')
       .select('id, event_name, value, event_date, client_id, pro_id')
       .eq('id', contractId)
       .single()
 
-    if (fetchError || !contract) throw new Error("Contrato não localizado para auditoria.")
+    if (fetchError || !contract) throw new Error("Contrato não localizado.")
+    if (contract.client_id !== userId && contract.pro_id !== userId) throw new Error("Acesso negado.")
 
-    // 2. Coleta de Evidências Forenses
     const metadata = {
       ip: req.headers.get('x-real-ip') || 'unknown',
       userAgent: req.headers.get('user-agent'),
@@ -34,14 +40,12 @@ serve(async (req) => {
       auth_id: userId
     }
 
-    // 3. Geração de Hash de Integridade (SHA-256)
     const rawContent = `${contract.id}|${contract.event_name}|${contract.value}|${contract.event_date}`;
     const encoder = new TextEncoder();
     const data = encoder.encode(rawContent);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 
-    // 4. Persistência Real
     const updateData: any = { signature_hash: hashHex };
     if (role === 'CLIENT') {
       updateData.signed_by_client = true;
@@ -58,15 +62,12 @@ serve(async (req) => {
 
     if (updateError) throw updateError
 
-    console.log(`[digital-signature] Audit Success: Contract ${contractId} signed by ${role}`);
-
     return new Response(JSON.stringify({ success: true, hash: hashHex }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
   } catch (error: any) {
-    console.error("[digital-signature] Audit Failure:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
       headers: corsHeaders

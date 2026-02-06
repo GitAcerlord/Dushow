@@ -15,14 +15,24 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { senderId, receiverId, content, contractId } = await req.json()
+    // SECURITY: Verify JWT
+    const authHeader = req.headers.get('Authorization')!
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
+    if (authError || !user) throw new Error("Unauthorized")
 
-    // 1. Verificar estado do contrato
+    const { receiverId, content, contractId } = await req.json()
+    const senderId = user.id
+
     const { data: contract } = await supabaseClient
       .from('contracts')
-      .select('status')
+      .select('status, client_id, pro_id')
       .eq('id', contractId)
       .single()
+
+    if (!contract || (contract.client_id !== senderId && contract.pro_id !== senderId)) {
+      throw new Error("Acesso negado ao chat deste contrato.")
+    }
 
     const isAccepted = contract?.status === 'ACCEPTED' || contract?.status === 'PAID' || contract?.status === 'COMPLETED';
     
@@ -31,12 +41,10 @@ serve(async (req) => {
     let reason = "";
 
     if (!isAccepted) {
-      // NORMALIZAÇÃO: Remove caracteres especiais e espaços para pegar escrita disfarçada
       const normalized = content.toLowerCase()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove acentos
-        .replace(/[^a-z0-9]/g, ""); // Remove tudo que não é letra ou número
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]/g, "");
 
-      // REGEX PATTERNS
       const patterns = {
         phone: /(\d{2,4}[-.\s]?\d{4,5}[-.\s]?\d{4})|(\d{10,11})/,
         email: /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i,
@@ -56,7 +64,6 @@ serve(async (req) => {
       }
     }
 
-    // 2. Persistência com Auditoria
     const { data, error } = await supabaseClient
       .from('messages')
       .insert({
@@ -72,8 +79,6 @@ serve(async (req) => {
       .single()
 
     if (error) throw error
-
-    console.log(`[secure-messaging] Message processed. Blocked: ${isBlocked}`);
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
