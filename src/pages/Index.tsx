@@ -15,6 +15,7 @@ import { motion } from "framer-motion";
 import PublicNavbar from '@/components/layout/PublicNavbar';
 import Footer from '@/components/layout/Footer';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { cn } from "@/lib/utils";
 
 const Index = () => {
   const stats = [
