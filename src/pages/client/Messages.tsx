@@ -4,79 +4,73 @@ import React, { useState, useEffect } from 'react';
 import ChatWindow from '@/components/chat/ChatWindow';
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, MessageSquare } from "lucide-react";
+import { Loader2, MessageSquare, Calendar } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from "@/lib/utils";
 
 const ClientMessages = () => {
-  const [contacts, setContacts] = useState<any[]>([]);
-  const [selectedContact, setSelectedContact] = useState<any>(null);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [selectedConv, setSelectedConv] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchContacts();
+    fetchConversations();
   }, []);
 
-  const fetchContacts = async () => {
+  const fetchConversations = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Busca artistas com quem o cliente tem contratos
+    // Busca contratos onde o cliente participa para listar os artistas
     const { data: contracts } = await supabase
       .from('contracts')
-      .select('pro:profiles!contracts_pro_id_fkey(id, full_name, avatar_url)')
-      .eq('client_id', user.id);
+      .select(`
+        id,
+        event_name,
+        status,
+        pro:profiles!contracts_pro_id_fkey(id, full_name, avatar_url)
+      `)
+      .eq('client_id', user.id)
+      .order('created_at', { ascending: false });
 
-    // Remove duplicatas tratando o retorno como array ou objeto único
-    const uniquePros = Array.from(new Set(contracts?.map(c => {
-      const pro = Array.isArray(c.pro) ? c.pro[0] : c.pro;
-      return pro?.id;
-    })))
-    .filter(Boolean)
-    .map(id => {
-      const contract = contracts?.find(c => {
-        const pro = Array.isArray(c.pro) ? c.pro[0] : c.pro;
-        return pro?.id === id;
-      });
-      return Array.isArray(contract?.pro) ? contract?.pro[0] : contract?.pro;
-    });
-
-    setContacts(uniquePros || []);
-    if (uniquePros.length > 0) setSelectedContact(uniquePros[0]);
+    setConversations(contracts || []);
+    if (contracts && contracts.length > 0) setSelectedConv(contracts[0]);
     setLoading(false);
   };
 
-  if (loading) return <div className="p-20 flex justify-center"><Loader2 className="animate-spin" /></div>;
+  if (loading) return <div className="p-20 flex justify-center"><Loader2 className="animate-spin text-blue-600" /></div>;
 
   return (
     <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8 h-[calc(100vh-120px)]">
       <Card className="border-none shadow-sm bg-white overflow-hidden flex flex-col rounded-[2rem]">
         <div className="p-6 border-b bg-slate-50">
-          <h3 className="font-black text-slate-900">Meus Artistas</h3>
+          <h3 className="font-black text-slate-900">Conversas por Evento</h3>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {contacts.length === 0 ? (
+          {conversations.length === 0 ? (
             <div className="p-10 text-center text-slate-400">
               <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-20" />
-              <p className="text-xs">Nenhuma conversa iniciada.</p>
+              <p className="text-xs">Nenhuma proposta ou evento ativo.</p>
             </div>
           ) : (
-            contacts.map((contact) => (
+            conversations.map((conv) => (
               <div 
-                key={contact.id} 
-                onClick={() => setSelectedContact(contact)}
+                key={conv.id} 
+                onClick={() => setSelectedConv(conv)}
                 className={cn(
                   "p-4 flex items-center gap-3 cursor-pointer transition-all border-l-4",
-                  selectedContact?.id === contact.id ? 'bg-blue-50 border-blue-600' : 'border-transparent hover:bg-slate-50'
+                  selectedConv?.id === conv.id ? 'bg-blue-50 border-blue-600' : 'border-transparent hover:bg-slate-50'
                 )}
               >
                 <Avatar>
-                  <AvatarImage src={contact.avatar_url} />
-                  <AvatarFallback>{contact.full_name?.[0]}</AvatarFallback>
+                  <AvatarImage src={conv.pro?.avatar_url} />
+                  <AvatarFallback>{conv.pro?.full_name?.[0]}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-bold text-slate-900 truncate">{contact.full_name}</h4>
-                  <p className="text-[10px] text-slate-400">Clique para conversar</p>
+                  <h4 className="text-sm font-bold text-slate-900 truncate">{conv.pro?.full_name}</h4>
+                  <p className="text-[10px] text-slate-400 flex items-center gap-1">
+                    <Calendar className="w-3 h-3" /> {conv.event_name}
+                  </p>
                 </div>
               </div>
             ))
@@ -85,16 +79,16 @@ const ClientMessages = () => {
       </Card>
 
       <div className="lg:col-span-2">
-        {selectedContact ? (
+        {selectedConv ? (
           <ChatWindow 
-            recipientId={selectedContact.id}
-            recipientName={selectedContact.full_name} 
-            recipientAvatar={selectedContact.avatar_url}
-            role="CLIENT"
+            recipientId={selectedConv.pro?.id}
+            recipientName={selectedConv.pro?.full_name} 
+            recipientAvatar={selectedConv.pro?.avatar_url}
+            contractId={selectedConv.id}
           />
         ) : (
           <Card className="h-full flex items-center justify-center bg-slate-50 border-none rounded-[2rem]">
-            <p className="text-slate-400">Selecione um artista para conversar.</p>
+            <p className="text-slate-400">Selecione uma conversa para iniciar.</p>
           </Card>
         )}
       </div>

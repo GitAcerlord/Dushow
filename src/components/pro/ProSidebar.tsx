@@ -4,7 +4,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, UserCircle, MessageSquare, Calendar,
-  Trophy, CreditCard, Sparkles, LogOut, Mic2, Star, FileText, Menu
+  Trophy, CreditCard, Sparkles, LogOut, Mic2, Star, FileText, Menu, Rss
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -15,7 +15,8 @@ import { Button } from "@/components/ui/button";
 const menuItems = [
   { icon: LayoutDashboard, label: 'Meu Painel', path: '/pro' },
   { icon: UserCircle, label: 'Meu Perfil', path: '/pro/profile' },
-  { icon: MessageSquare, label: 'Feed Social', path: '/pro/feed' },
+  { icon: Rss, label: 'Feed Social', path: '/pro/feed' },
+  { icon: MessageSquare, label: 'Mensagens', path: '/pro/messages' },
   { icon: Star, label: 'Avaliações', path: '/pro/reviews' },
   { icon: FileText, label: 'Meus Contratos', path: '/pro/contracts' },
   { icon: Calendar, label: 'Minha Agenda', path: '/pro/agenda' },
