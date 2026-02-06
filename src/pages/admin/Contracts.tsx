@@ -3,9 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, FileText, DollarSign, AlertTriangle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
+import { showError } from "@/utils/toast";
 
 const AdminContracts = () => {
   const [contracts, setContracts] = useState<any[]>([]);
@@ -18,6 +19,19 @@ const AdminContracts = () => {
   const fetchContracts = async () => {
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Não autenticado");
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.role !== 'ADMIN') {
+        throw new Error("Acesso negado.");
+      }
+
       const { data, error } = await supabase
         .from('contracts')
         .select(`
@@ -29,8 +43,8 @@ const AdminContracts = () => {
 
       if (error) throw error;
       setContracts(data || []);
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      showError(error.message || "Erro ao carregar contratos.");
     } finally {
       setLoading(false);
     }
@@ -53,7 +67,7 @@ const AdminContracts = () => {
         </Card>
       </div>
 
-      <Card className="border-none shadow-sm bg-white overflow-hidden">
+      <Card className="border-none shadow-sm bg-white overflow-hidden rounded-[2rem]">
         {loading ? (
           <div className="p-12 flex justify-center"><Loader2 className="animate-spin" /></div>
         ) : (
@@ -68,15 +82,21 @@ const AdminContracts = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {contracts.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-bold">{c.event_name}</TableCell>
-                  <TableCell>{c.pro?.full_name}</TableCell>
-                  <TableCell>{c.client?.full_name}</TableCell>
-                  <TableCell>R$ {Number(c.value).toLocaleString('pt-BR')}</TableCell>
-                  <TableCell><Badge>{c.status}</Badge></TableCell>
+              {contracts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-10 text-slate-500">Nenhum contrato visível ou acesso restrito.</TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                contracts.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell className="font-bold">{c.event_name}</TableCell>
+                    <TableCell>{c.pro?.full_name}</TableCell>
+                    <TableCell>{c.client?.full_name}</TableCell>
+                    <TableCell>R$ {Number(c.value).toLocaleString('pt-BR')}</TableCell>
+                    <TableCell><Badge>{c.status}</Badge></TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         )}

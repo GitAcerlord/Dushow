@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from "@/components/ui/badge";
+import { showError } from "@/utils/toast";
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState<any>(null);
@@ -18,11 +19,27 @@ const AdminDashboard = () => {
 
   const fetchStats = async () => {
     try {
+      // Verificação de segurança adicional antes de buscar dados
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Não autenticado");
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.role !== 'ADMIN') {
+        throw new Error("Acesso negado: Permissões insuficientes.");
+      }
+
       // Query real de contratos
-      const { data: contracts } = await supabase.from('contracts').select('value, status');
+      const { data: contracts, error: contractsError } = await supabase.from('contracts').select('value, status');
+      if (contractsError) throw contractsError;
       
       // Query real de usuários
-      const { count: userCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
+      const { count: userCount, error: userError } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
+      if (userError) throw userError;
 
       if (contracts) {
         const grossRevenue = contracts
@@ -31,14 +48,15 @@ const AdminDashboard = () => {
         
         setStats({
           grossRevenue,
-          platformFee: grossRevenue * 0.15, // 15% de comissão média
+          platformFee: grossRevenue * 0.15,
           userCount: userCount || 0,
           activeContracts: contracts.filter(c => c.status === 'PAID').length,
           pendingApprovals: contracts.filter(c => c.status === 'PENDING').length
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao carregar estatísticas admin:", error);
+      showError(error.message || "Erro ao carregar dados administrativos.");
     } finally {
       setLoading(false);
     }
@@ -47,6 +65,12 @@ const AdminDashboard = () => {
   if (loading) return (
     <div className="h-[calc(100vh-64px)] flex items-center justify-center">
       <Loader2 className="animate-spin w-10 h-10 text-indigo-600" />
+    </div>
+  );
+
+  if (!stats) return (
+    <div className="p-8 text-center">
+      <p className="text-slate-500">Não foi possível carregar os dados. Verifique suas permissões.</p>
     </div>
   );
 
