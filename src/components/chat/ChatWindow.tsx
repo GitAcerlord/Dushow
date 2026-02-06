@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
-  Send, ShieldAlert, Loader2, Lock
+  Send, ShieldAlert, Loader2
 } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from "@/utils/toast";
@@ -24,7 +24,7 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
       if (user && recipientId) {
-        fetchMessages(user.id);
+        fetchMessages();
         
         const channel = supabase
           .channel(`chat:${contractId}`)
@@ -52,7 +52,7 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
     }
   }, [messages]);
 
-  const fetchMessages = async (userId: string) => {
+  const fetchMessages = async () => {
     const { data } = await supabase
       .from('messages')
       .select('*')
@@ -68,7 +68,6 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
 
     setSending(true);
     try {
-      // CHAMADA AO BACKEND (EDGE FUNCTION)
       const { data, error } = await supabase.functions.invoke('secure-messaging', {
         body: {
           senderId: currentUser.id,
@@ -99,10 +98,10 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
           </Avatar>
           <div>
             <h4 className="font-bold text-slate-900 text-sm">{recipientName}</h4>
-            <p className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+            <div className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
               Chat Seguro Ativo
-            </p>
+            </div>
           </div>
         </div>
       </div>
@@ -126,9 +125,9 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
                   : 'bg-white text-slate-700 rounded-tl-none border border-slate-100'
               } ${msg.is_blocked ? 'bg-red-50 text-red-600 border-red-100 italic' : ''}`}>
                 {msg.content}
-                <p className={`text-[10px] mt-1 text-right ${msg.sender_id === currentUser?.id ? 'text-indigo-200' : 'text-slate-400'}`}>
+                <div className={`text-[10px] mt-1 text-right ${msg.sender_id === currentUser?.id ? 'text-indigo-200' : 'text-slate-400'}`}>
                   {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </p>
+                </div>
               </div>
             </div>
           ))
