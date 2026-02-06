@@ -10,7 +10,8 @@ import {
   ShieldCheck, 
   Settings,
   LogOut,
-  Mic2
+  Mic2,
+  MessageSquare
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,6 +19,7 @@ const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
   { icon: Users, label: 'Usuários', path: '/admin/users' },
   { icon: FileText, label: 'Contratos', path: '/admin/contracts' },
+  { icon: MessageSquare, label: 'Mensagens', path: '/admin/messages' },
   { icon: CreditCard, label: 'Financeiro', path: '/admin/finance' },
   { icon: ShieldCheck, label: 'Aprovações', path: '/admin/approvals' },
   { icon: Settings, label: 'Configurações', path: '/admin/settings' },

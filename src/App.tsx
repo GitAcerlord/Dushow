@@ -21,6 +21,7 @@ import AdminContracts from "./pages/admin/Contracts";
 import AdminApprovals from "./pages/admin/Approvals";
 import AdminSettings from "./pages/admin/Settings";
 import AdminFinance from "./pages/admin/Finance";
+import AdminMessages from "./pages/admin/Messages";
 
 // Pro
 import ProLayout from "./pages/pro/ProLayout";
@@ -71,6 +72,7 @@ const App = () => (
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="contracts" element={<AdminContracts />} />
+            <Route path="messages" element={<AdminMessages />} />
             <Route path="finance" element={<AdminFinance />} />
             <Route path="approvals" element={<AdminApprovals />} />
             <Route path="settings" element={<AdminSettings />} />
