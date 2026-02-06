@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, Send, Zap, Trash2, MoreHorizontal, Edit2, Image as ImageIcon, X } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from "@/utils/toast";
+import { isValidImageUrl, getSafeImageUrl } from '@/utils/url-validator';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,6 +55,13 @@ const Feed = () => {
 
   const handlePost = async () => {
     if (!postContent.trim() || !userProfile) return;
+
+    // SECURITY FIX: Validate post image URL
+    if (postImage && !isValidImageUrl(postImage)) {
+      showError("URL de imagem não permitida. Use domínios confiáveis.");
+      return;
+    }
+
     setIsPosting(true);
     try {
       if (editingPost) {
@@ -114,7 +122,7 @@ const Feed = () => {
     <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6">
       <Card className="p-6 border-none shadow-sm bg-white rounded-2xl">
         <div className="flex gap-4">
-          <Avatar><AvatarImage src={userProfile?.avatar_url} /></Avatar>
+          <Avatar><AvatarImage src={getSafeImageUrl(userProfile?.avatar_url, '')} /></Avatar>
           <div className="flex-1 space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-sm">{editingPost ? "Editar Post" : "Nova Publicação"}</h3>
@@ -131,7 +139,7 @@ const Feed = () => {
                 <ImageIcon className="w-3 h-3" /> URL da Imagem (opcional)
               </div>
               <Input 
-                placeholder="https://..." 
+                placeholder="https://images.unsplash.com/..." 
                 value={postImage} 
                 onChange={(e) => setPostImage(e.target.value)}
                 className="bg-slate-50 border-none rounded-xl h-8 text-xs"
@@ -153,7 +161,7 @@ const Feed = () => {
         <Card key={post.id} className="border-none shadow-sm bg-white overflow-hidden rounded-2xl">
           <div className="p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Avatar><AvatarImage src={post.profiles?.avatar_url} /></Avatar>
+              <Avatar><AvatarImage src={getSafeImageUrl(post.profiles?.avatar_url, '')} /></Avatar>
               <div>
                 <h4 className="font-bold text-sm">{post.profiles?.full_name}</h4>
                 <p className="text-[10px] text-slate-400">{new Date(post.created_at).toLocaleString()}</p>
@@ -182,7 +190,7 @@ const Feed = () => {
           </div>
           <div className="px-4 pb-4 space-y-3">
             <p className="text-slate-700 text-sm whitespace-pre-wrap">{post.content}</p>
-            {post.image_url && (
+            {post.image_url && isValidImageUrl(post.image_url) && (
               <div className="rounded-xl overflow-hidden border border-slate-100">
                 <img src={post.image_url} alt="Post" className="w-full h-auto max-h-96 object-cover" />
               </div>

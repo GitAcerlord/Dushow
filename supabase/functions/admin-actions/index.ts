@@ -20,25 +20,28 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
     if (authError || !user) throw new Error("Unauthorized")
 
-    const { planId, planName, paymentId } = await req.json()
+    // Verify the caller is an admin
+    const { data: callerProfile } = await supabaseClient
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
 
-    // SECURITY FIX: In a production environment, you MUST verify the paymentId 
-    // with your provider (Stripe/Asaas) here before proceeding.
-    if (!paymentId && planId !== 'free') {
-      throw new Error("Payment verification required for paid plans.");
-    }
+    if (callerProfile?.role !== 'ADMIN') throw new Error("Forbidden: Admin access required.");
 
-    console.log(`[process-subscription] Verified payment ${paymentId} for plan ${planName}`);
+    const { targetUserId, updates } = await req.json()
 
-    const { error } = await supabaseClient.from('profiles').update({ 
-      plan_tier: planId,
-      is_verified: ['premium', 'elite'].includes(planId),
-      is_superstar: planId === 'elite'
-    }).eq('id', user.id);
+    // SECURITY FIX: Use service_role client to bypass tr_protect_profile_fields trigger
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .update(updates)
+      .eq('id', targetUserId)
+      .select()
+      .single();
 
     if (error) throw error;
 
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })

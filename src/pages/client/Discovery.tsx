@@ -21,8 +21,8 @@ const Discovery = () => {
   const [artists, setArtists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Estado para nova proposta
   const [selectedArtist, setSelectedArtist] = useState<any>(null);
   const [proposalData, setProposalData] = useState({
     eventName: "",
@@ -47,19 +47,16 @@ const Discovery = () => {
       return;
     }
 
+    setIsSubmitting(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não logado.");
-
-      // REGRA DE NEGÓCIO: Criação real de contrato PENDING
-      const { error } = await supabase.from('contracts').insert({
-        client_id: user.id,
-        pro_id: selectedArtist.id,
-        event_name: proposalData.eventName,
-        event_date: proposalData.eventDate,
-        event_location: proposalData.location,
-        value: selectedArtist.price,
-        status: 'PENDING'
+      // SECURITY FIX: Use Edge Function to create contract with server-side price validation
+      const { data, error } = await supabase.functions.invoke('create-contract', {
+        body: {
+          proId: selectedArtist.id,
+          eventName: proposalData.eventName,
+          eventDate: proposalData.eventDate,
+          location: proposalData.location
+        }
       });
 
       if (error) throw error;
@@ -68,7 +65,9 @@ const Discovery = () => {
       setSelectedArtist(null);
       navigate('/client/events');
     } catch (error: any) {
-      showError("Erro ao enviar proposta.");
+      showError(error.message || "Erro ao enviar proposta.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -122,7 +121,9 @@ const Discovery = () => {
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button onClick={handleSendProposal} className="w-full bg-indigo-600 h-12 rounded-xl font-bold">Enviar Proposta Real</Button>
+                      <Button onClick={handleSendProposal} disabled={isSubmitting} className="w-full bg-indigo-600 h-12 rounded-xl font-bold">
+                        {isSubmitting ? <Loader2 className="animate-spin" /> : "Enviar Proposta Real"}
+                      </Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>

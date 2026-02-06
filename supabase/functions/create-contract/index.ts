@@ -20,25 +20,35 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
     if (authError || !user) throw new Error("Unauthorized")
 
-    const { planId, planName, paymentId } = await req.json()
+    const { proId, eventName, eventDate, location } = await req.json()
 
-    // SECURITY FIX: In a production environment, you MUST verify the paymentId 
-    // with your provider (Stripe/Asaas) here before proceeding.
-    if (!paymentId && planId !== 'free') {
-      throw new Error("Payment verification required for paid plans.");
-    }
+    // SECURITY FIX: Fetch the artist's actual price from the database
+    const { data: artist, error: artistError } = await supabaseClient
+      .from('profiles')
+      .select('price')
+      .eq('id', proId)
+      .single();
 
-    console.log(`[process-subscription] Verified payment ${paymentId} for plan ${planName}`);
+    if (artistError || !artist) throw new Error("Artist not found.");
 
-    const { error } = await supabaseClient.from('profiles').update({ 
-      plan_tier: planId,
-      is_verified: ['premium', 'elite'].includes(planId),
-      is_superstar: planId === 'elite'
-    }).eq('id', user.id);
+    // Create contract with the verified price
+    const { data: contract, error: contractError } = await supabaseClient
+      .from('contracts')
+      .insert({
+        client_id: user.id,
+        pro_id: proId,
+        event_name: eventName,
+        event_date: eventDate,
+        event_location: location,
+        value: artist.price, // Use server-side price
+        status: 'PENDING'
+      })
+      .select()
+      .single();
 
-    if (error) throw error;
+    if (contractError) throw contractError;
 
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify(contract), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })

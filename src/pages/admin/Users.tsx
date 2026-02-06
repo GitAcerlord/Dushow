@@ -22,6 +22,7 @@ const AdminUsers = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [actionId, setActionId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -58,13 +59,23 @@ const AdminUsers = () => {
   };
 
   const handleVerify = async (id: string, name: string) => {
+    setActionId(id);
     try {
-      const { error } = await supabase.from('profiles').update({ is_verified: true }).eq('id', id);
+      // SECURITY FIX: Use Edge Function to bypass restrictive triggers safely
+      const { error } = await supabase.functions.invoke('admin-actions', {
+        body: { 
+          targetUserId: id, 
+          updates: { is_verified: true } 
+        }
+      });
+
       if (error) throw error;
       showSuccess(`Usuário ${name} verificado.`);
       fetchUsers();
     } catch (error: any) {
-      showError("Erro ao verificar usuário.");
+      showError(error.message || "Erro ao verificar usuário.");
+    } finally {
+      setActionId(null);
     }
   };
 
@@ -127,7 +138,9 @@ const AdminUsers = () => {
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon"><MoreHorizontal className="w-4 h-4" /></Button>
+                          <Button variant="ghost" size="icon" disabled={actionId === user.id}>
+                            {actionId === user.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <MoreHorizontal className="w-4 h-4" />}
+                          </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {!user.is_verified && (

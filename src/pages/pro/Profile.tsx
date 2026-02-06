@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
+import { isValidImageUrl, getSafeImageUrl } from '@/utils/url-validator';
 
 const CATEGORIES = ["DJ", "Banda", "Cantor Solo", "Dupla Sertaneja", "Músico Instrumental", "Outros"];
 
@@ -38,6 +39,12 @@ const ProProfile = () => {
   };
 
   const handleSave = async () => {
+    // SECURITY FIX: Validate avatar URL before saving
+    if (formData.avatar_url && !isValidImageUrl(formData.avatar_url)) {
+      showError("URL de avatar não permitida. Use domínios confiáveis (Unsplash, DiceBear, etc).");
+      return;
+    }
+
     try {
       const { error } = await supabase.from('profiles').update({
         full_name: formData.full_name,
@@ -59,8 +66,11 @@ const ProProfile = () => {
   };
 
   const addPortfolioImage = async () => {
-    if (!newImageUrl.trim() || !newImageUrl.startsWith('http')) {
-      showError("Insira uma URL de imagem válida.");
+    if (!newImageUrl.trim()) return;
+    
+    // SECURITY FIX: Validate portfolio image URL
+    if (!isValidImageUrl(newImageUrl)) {
+      showError("URL de imagem não permitida. Use domínios confiáveis.");
       return;
     }
 
@@ -90,13 +100,15 @@ const ProProfile = () => {
 
   if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin text-indigo-600" /></div>;
 
+  const safeAvatar = getSafeImageUrl(formData.avatar_url, `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.full_name}`);
+
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8">
       <Card className="p-8 border-none shadow-2xl bg-white rounded-[2.5rem]">
         <div className="flex flex-col md:flex-row gap-10 items-start">
           <div className="relative shrink-0">
             <div className="w-40 h-40 rounded-[2rem] overflow-hidden border-4 border-white shadow-2xl bg-slate-100">
-              <img src={formData.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.full_name}`} className="w-full h-full object-cover" />
+              <img src={safeAvatar} className="w-full h-full object-cover" />
             </div>
             {isEditing && (
               <div className="mt-4">
@@ -105,6 +117,7 @@ const ProProfile = () => {
                   value={formData.avatar_url || ""} 
                   onChange={(e) => setFormData({...formData, avatar_url: e.target.value})}
                   className="h-8 text-xs"
+                  placeholder="https://images.unsplash.com/..."
                 />
               </div>
             )}
@@ -179,7 +192,7 @@ const ProProfile = () => {
         <h3 className="text-2xl font-black text-slate-900">Portfólio</h3>
         <div className="flex gap-2">
           <Input 
-            placeholder="URL da imagem..." 
+            placeholder="URL da imagem (Unsplash, DiceBear...)" 
             value={newImageUrl} 
             onChange={(e) => setNewImageUrl(e.target.value)}
             className="bg-white border-slate-200 rounded-xl"
@@ -192,7 +205,7 @@ const ProProfile = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {profile.portfolio_urls?.map((url: string, index: number) => (
             <div key={index} className="group relative aspect-square bg-slate-100 rounded-3xl overflow-hidden shadow-sm">
-              <img src={url} alt="Portfólio" className="w-full h-full object-cover" />
+              <img src={getSafeImageUrl(url, 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400')} alt="Portfólio" className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <Button variant="destructive" size="icon" onClick={() => removePortfolioImage(url)}>
                   <Trash2 className="w-5 h-5" />
