@@ -66,7 +66,7 @@ const App = () => (
           <Route path="/about" element={<About />} />
           <Route path="/marketplace" element={<Marketplace />} />
           
-          {/* Painel Administrativo - Protegido */}
+          {/* Painel Administrativo */}
           <Route path="/admin" element={
             <ProtectedRoute allowedRoles={['ADMIN']}>
               <AdminLayout />
@@ -81,7 +81,7 @@ const App = () => (
             <Route path="settings" element={<AdminSettings />} />
           </Route>
 
-          {/* Painel do Profissional - Protegido */}
+          {/* Painel do Profissional */}
           <Route path="/pro" element={
             <ProtectedRoute allowedRoles={['PRO', 'ADMIN']}>
               <ProLayout />
@@ -101,7 +101,7 @@ const App = () => (
             <Route path="finance" element={<ProFinance />} />
           </Route>
 
-          {/* Painel do Contratante - Protegido */}
+          {/* Painel do Contratante */}
           <Route path="/client" element={
             <ProtectedRoute allowedRoles={['CLIENT', 'ADMIN']}>
               <ClientLayout />

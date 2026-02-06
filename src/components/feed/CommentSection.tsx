@@ -27,14 +27,31 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
   }, [postId]);
 
   const fetchComments = async () => {
-    const { data, error } = await supabase
-      .from('post_comments')
-      .select('*, profiles:user_id(full_name, avatar_url)')
-      .eq('post_id', postId)
-      .order('created_at', { ascending: true });
+    setLoading(true);
+    try {
+      // Buscamos o comentário e o perfil do autor via join
+      const { data, error } = await supabase
+        .from('post_comments')
+        .select(`
+          id,
+          content,
+          user_id,
+          created_at,
+          profiles:user_id (
+            full_name,
+            avatar_url
+          )
+        `)
+        .eq('post_id', postId)
+        .order('created_at', { ascending: true });
 
-    if (!error) setComments(data || []);
-    setLoading(false);
+      if (error) throw error;
+      setComments(data || []);
+    } catch (e) {
+      console.error("Erro ao carregar comentários:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSend = async () => {
@@ -43,15 +60,28 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
     try {
       const { data, error } = await supabase
         .from('post_comments')
-        .insert({ post_id: postId, user_id: currentUserId, content: newComment })
-        .select('*, profiles:user_id(full_name, avatar_url)')
+        .insert({ 
+          post_id: postId, 
+          user_id: currentUserId, 
+          content: newComment 
+        })
+        .select(`
+          id,
+          content,
+          user_id,
+          created_at,
+          profiles:user_id (
+            full_name,
+            avatar_url
+          )
+        `)
         .single();
 
       if (error) throw error;
-      setComments([...comments, data]);
+      setComments(prev => [...prev, data]);
       setNewComment("");
     } catch (e) {
-      showError("Erro ao comentar. Verifique sua conexão.");
+      showError("Erro ao enviar comentário.");
     } finally {
       setSubmitting(false);
     }
@@ -59,7 +89,7 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from('post_comments').delete().eq('id', id);
-    if (!error) setComments(comments.filter(c => c.id !== id));
+    if (!error) setComments(prev => prev.filter(c => c.id !== id));
   };
 
   const handleUpdate = async (id: string) => {
@@ -69,45 +99,49 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
       .eq('id', id);
 
     if (!error) {
-      setComments(comments.map(c => c.id === id ? { ...c, content: editContent } : c));
+      setComments(prev => prev.map(c => c.id === id ? { ...c, content: editContent } : c));
       setEditingId(null);
     }
   };
 
-  if (loading) return <div className="py-4 flex justify-center"><Loader2 className="w-4 h-4 animate-spin text-slate-300" /></div>;
+  if (loading) return <div className="py-4 flex justify-center"><Loader2 className="w-4 h-4 animate-spin text-indigo-600" /></div>;
 
   return (
     <div className="mt-4 space-y-4 border-t pt-4">
       <div className="space-y-3">
-        {comments.map((comment) => (
-          <div key={comment.id} className="flex gap-3 group">
-            <Avatar className="w-7 h-7">
-              <AvatarImage src={getSafeImageUrl(comment.profiles?.avatar_url, '')} />
-              <AvatarFallback>{comment.profiles?.full_name?.[0]}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1 bg-slate-50 p-3 rounded-2xl relative">
-              <div className="flex justify-between items-start">
-                <span className="text-xs font-black text-slate-900">{comment.profiles?.full_name}</span>
-                {comment.user_id === currentUserId && (
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => { setEditingId(comment.id); setEditContent(comment.content); }} className="text-slate-400 hover:text-indigo-600"><Edit2 className="w-3 h-3" /></button>
-                    <button onClick={() => handleDelete(comment.id)} className="text-slate-400 hover:text-red-600"><Trash2 className="w-3 h-3" /></button>
+        {comments.length === 0 ? (
+          <p className="text-[10px] text-slate-400 text-center py-2">Nenhum comentário ainda. Seja o primeiro!</p>
+        ) : (
+          comments.map((comment) => (
+            <div key={comment.id} className="flex gap-3 group">
+              <Avatar className="w-7 h-7">
+                <AvatarImage src={getSafeImageUrl(comment.profiles?.avatar_url, '')} />
+                <AvatarFallback>{comment.profiles?.full_name?.[0]}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 bg-slate-50 p-3 rounded-2xl relative">
+                <div className="flex justify-between items-start">
+                  <span className="text-xs font-black text-slate-900">{comment.profiles?.full_name}</span>
+                  {comment.user_id === currentUserId && (
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => { setEditingId(comment.id); setEditContent(comment.content); }} className="text-slate-400 hover:text-indigo-600"><Edit2 className="w-3 h-3" /></button>
+                      <button onClick={() => handleDelete(comment.id)} className="text-slate-400 hover:text-red-600"><Trash2 className="w-3 h-3" /></button>
+                    </div>
+                  )}
+                </div>
+                
+                {editingId === comment.id ? (
+                  <div className="mt-2 flex gap-2">
+                    <Input value={editContent} onChange={(e) => setEditContent(e.target.value)} className="h-7 text-xs" />
+                    <Button size="sm" onClick={() => handleUpdate(comment.id)} className="h-7 px-2 bg-indigo-600"><Send className="w-3 h-3" /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-7 px-2"><X className="w-3 h-3" /></Button>
                   </div>
+                ) : (
+                  <p className="text-xs text-slate-600 mt-1">{comment.content}</p>
                 )}
               </div>
-              
-              {editingId === comment.id ? (
-                <div className="mt-2 flex gap-2">
-                  <Input value={editContent} onChange={(e) => setEditContent(e.target.value)} className="h-7 text-xs" />
-                  <Button size="sm" onClick={() => handleUpdate(comment.id)} className="h-7 px-2 bg-indigo-600"><Send className="w-3 h-3" /></Button>
-                  <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-7 px-2"><X className="w-3 h-3" /></Button>
-                </div>
-              ) : (
-                <p className="text-xs text-slate-600 mt-1">{comment.content}</p>
-              )}
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       <div className="flex gap-2">
@@ -115,7 +149,7 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
           placeholder="Escreva um comentário..." 
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
-          className="h-9 text-xs bg-slate-50 border-none rounded-xl"
+          className="h-9 text-xs bg-slate-50 border-none rounded-xl focus-visible:ring-indigo-500"
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
         />
         <Button size="sm" onClick={handleSend} disabled={submitting} className="bg-indigo-600 rounded-xl h-9">

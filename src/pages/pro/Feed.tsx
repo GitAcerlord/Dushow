@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from "@/utils/toast";
 import { getSafeImageUrl } from '@/utils/url-validator';
 import PostCard from '@/components/feed/PostCard';
+import { Label } from "@/components/ui/label";
 
 const POSTS_PER_PAGE = 10;
 
@@ -41,7 +42,6 @@ const Feed = () => {
       const from = pageNumber * POSTS_PER_PAGE;
       const to = from + POSTS_PER_PAGE - 1;
 
-      // Query simplificada para evitar erros de relacionamento
       const { data: postsData, error } = await supabase
         .from('posts')
         .select(`
@@ -71,7 +71,9 @@ const Feed = () => {
     }
   }, []);
 
-  useEffect(() => { fetchData(0); }, [fetchData]);
+  useEffect(() => { 
+    fetchData(0); 
+  }, [fetchData]);
 
   const handlePost = async () => {
     if (!postContent.trim() || !userProfile) return;
@@ -121,7 +123,7 @@ const Feed = () => {
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from('posts').delete().eq('id', id);
     if (!error) {
-      setPosts(posts.filter(p => p.id !== id));
+      setPosts(prev => prev.filter(p => p.id !== id));
       showSuccess("Post excluído permanentemente.");
     }
   };
