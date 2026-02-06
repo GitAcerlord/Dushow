@@ -46,17 +46,24 @@ const ProContracts = () => {
     setProcessingId(id);
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado.");
       
       const { data, error } = await supabase.functions.invoke('contract-state-machine', {
-        body: { contractId: id, action, userId: user?.id }
+        body: { 
+          contractId: id, 
+          action: action, 
+          userId: user.id 
+        }
       });
 
-      if (error || data?.error) throw new Error(data?.error || "Erro ao processar contrato.");
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       showSuccess(`Contrato atualizado para: ${data.status}`);
       fetchContracts();
     } catch (error: any) {
-      showError(error.message);
+      console.error("Action Error:", error);
+      showError(error.message || "Erro ao processar contrato.");
     } finally {
       setProcessingId(null);
     }
@@ -81,7 +88,8 @@ const ProContracts = () => {
                   "uppercase text-[10px] font-bold",
                   contract.status === 'COMPLETED' ? 'bg-emerald-500 text-white' : 
                   contract.status === 'ACCEPTED' ? 'bg-blue-500 text-white' :
-                  contract.status === 'REJECTED' ? 'bg-red-500 text-white' : 'bg-amber-500 text-white'
+                  contract.status === 'REJECTED' ? 'bg-red-500 text-white' : 
+                  contract.status === 'PAID' ? 'bg-indigo-500 text-white' : 'bg-amber-500 text-white'
                 )}>
                   {contract.status}
                 </Badge>

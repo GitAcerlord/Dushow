@@ -15,7 +15,8 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { contractId, action, userId, metadata } = await req.json()
+    const { contractId, action, userId } = await req.json()
+    console.log(`[contract-state-machine] Action: ${action} | Contract: ${contractId} | User: ${userId}`);
 
     // 1. Buscar estado atual do contrato
     const { data: contract, error: fetchError } = await supabaseClient
@@ -24,7 +25,7 @@ serve(async (req) => {
       .eq('id', contractId)
       .single()
 
-    if (fetchError || !contract) throw new Error("Contrato não localizado.")
+    if (fetchError || !contract) throw new Error("Contrato não localizado.");
 
     let nextStatus = contract.status;
     const currentStatus = contract.status;
@@ -32,45 +33,49 @@ serve(async (req) => {
     // 2. MÁQUINA DE ESTADOS - Validação de Transições
     switch (action) {
       case 'ACCEPT':
-        if (currentStatus !== 'CREATED' && currentStatus !== 'PENDING') throw new Error("Transição inválida: Apenas contratos CREATED podem ser aceitos.");
-        if (userId !== contract.pro_id) throw new Error("Não autorizado: Apenas o profissional pode aceitar.");
+        // Aceita se estiver CREATED ou PENDING (após negociação)
+        if (currentStatus !== 'CREATED' && currentStatus !== 'PENDING') {
+          throw new Error(`Transição inválida: Status atual é ${currentStatus}`);
+        }
+        // Verifica se quem está aceitando é o profissional do contrato
+        if (userId !== contract.pro_id) {
+          throw new Error("Não autorizado: Apenas o profissional pode aceitar.");
+        }
         nextStatus = 'ACCEPTED';
         break;
 
       case 'REJECT':
-        if (currentStatus !== 'CREATED' && currentStatus !== 'PENDING') throw new Error("Transição inválida.");
+        if (currentStatus !== 'CREATED' && currentStatus !== 'PENDING') {
+          throw new Error("Transição inválida para rejeição.");
+        }
         nextStatus = 'REJECTED';
         break;
 
       case 'SIGN':
         if (currentStatus !== 'ACCEPTED') throw new Error("Contrato precisa ser aceito antes de assinar.");
-        // Lógica de assinatura digital (Hash)
-        const signatureHash = crypto.randomUUID(); // Simplificado para o exemplo
-        await supabaseClient.from('contracts').update({ 
-          signature_hash: signatureHash,
-          signed_by_pro: userId === contract.pro_id ? true : contract.signed_by_pro,
-          signed_by_client: userId === contract.client_id ? true : contract.signed_by_client
-        }).eq('id', contractId);
-        
         nextStatus = 'PENDING_SIGNATURE';
         break;
 
       case 'COMPLETE':
-        if (currentStatus !== 'PAID' && currentStatus !== 'PENDING_SIGNATURE') throw new Error("Apenas contratos pagos ou assinados podem ser concluídos.");
+        if (currentStatus !== 'PAID' && currentStatus !== 'PENDING_SIGNATURE') {
+          throw new Error("Apenas contratos pagos ou assinados podem ser concluídos.");
+        }
         nextStatus = 'COMPLETED';
         
         // 💰 LÓGICA FINANCEIRA (LEDGER)
         const gross = Number(contract.value);
-        const feeRate = 0.15; // 15% padrão
+        const feeRate = 0.15; 
         const platformFee = gross * feeRate;
         const artistNet = gross - platformFee;
 
         // Inserir no Ledger (Auditável)
-        await supabaseClient.from('financial_ledger').insert([
+        const { error: ledgerError } = await supabaseClient.from('financial_ledger').insert([
           { contract_id: contractId, user_id: contract.client_id, amount: -gross, type: 'GROSS_PAYMENT', description: `Pagamento Evento: ${contract.event_name}` },
-          { contract_id: contractId, user_id: contract.pro_id, amount: artist_net, type: 'ARTIST_NET', description: `Recebimento Líquido: ${contract.event_name}` },
-          { contract_id: contractId, user_id: null, amount: platformFee, type: 'PLATFORM_FEE', description: `Comissão DUSHOW: ${contract.event_name}` }
+          { contract_id: contractId, user_id: contract.pro_id, amount: artistNet, type: 'ARTIST_NET', description: `Recebimento Líquido: ${contract.event_name}` },
+          { contract_id: contractId, user_id: contract.pro_id, amount: platformFee, type: 'PLATFORM_FEE', description: `Comissão DUSHOW: ${contract.event_name}` }
         ]);
+
+        if (ledgerError) console.error("[contract-state-machine] Ledger Error:", ledgerError);
 
         // Atualizar XP do Artista
         const { data: proProfile } = await supabaseClient.from('profiles').select('xp_total').eq('id', contract.pro_id).single();
@@ -88,8 +93,6 @@ serve(async (req) => {
       .eq('id', contractId);
 
     if (updateError) throw updateError;
-
-    console.log(`[contract-state-machine] Success: ${contractId} | ${currentStatus} -> ${nextStatus}`);
 
     return new Response(JSON.stringify({ success: true, status: nextStatus }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
