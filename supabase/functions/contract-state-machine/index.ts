@@ -17,37 +17,68 @@ serve(async (req) => {
 
     const { contractId, action, userId } = await req.json()
     
-    const { data: contract } = await supabaseClient
+    const { data: contract, error: fetchError } = await supabaseClient
       .from('contracts')
       .select('*, pro:profiles!contracts_pro_id_fkey(*)')
       .eq('id', contractId)
       .single()
 
-    if (action === 'COMPLETE_EVENT') {
-      // Apenas o CLIENTE pode liberar o dinheiro
-      if (contract.client_id !== userId) throw new Error("Apenas o contratante pode liberar o pagamento.");
-      if (contract.status !== 'PAID') throw new Error("O contrato ainda não foi pago.");
+    if (fetchError || !contract) throw new Error("Contrato não localizado.");
 
-      const feePercentage = 0.15; // Simplificado, ideal buscar do plano
+    if (action === 'COMPLETE_EVENT') {
+      // Segurança: Apenas o contratante pode liberar o dinheiro
+      if (contract.client_id !== userId) throw new Error("Apenas o contratante pode liberar o pagamento.");
+      if (contract.status !== 'PAID') throw new Error("O contrato ainda não foi pago ou já foi concluído.");
+
+      const feePercentage = 0.15; // Idealmente buscar do plano do artista
       const artistNet = Number(contract.value) * (1 - feePercentage);
 
-      // MOVER SALDO: Tira do pendente e coloca no disponível
+      // Chamada RPC com nomes de parâmetros explícitos
       const { error: rpcError } = await supabaseClient.rpc('release_artist_funds', {
         artist_id: contract.pro_id,
         amount: artistNet
       });
 
-      if (rpcError) throw rpcError;
+      if (rpcError) {
+        console.error("[contract-state-machine] RPC Error:", rpcError);
+        throw new Error("Erro interno ao processar saldo no banco de dados.");
+      }
 
-      await supabaseClient.from('contracts').update({ status: 'COMPLETED' }).eq('id', contractId);
+      const { error: updateError } = await supabaseClient
+        .from('contracts')
+        .update({ status: 'COMPLETED', updated_at: new Date().toISOString() })
+        .eq('id', contractId);
+
+      if (updateError) throw updateError;
       
-      return new Response(JSON.stringify({ success: true, status: 'COMPLETED' }), { headers: corsHeaders });
+      return new Response(JSON.stringify({ success: true, status: 'COMPLETED' }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200 
+      });
     }
 
-    // ... outras ações (ACCEPT, REJECT, etc)
-    return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+    // Outras ações (ACCEPT, REJECT)
+    if (action === 'ACCEPT' || action === 'REJECT') {
+      const newStatus = action === 'ACCEPT' ? 'ACCEPTED' : 'REJECTED';
+      const { error: updateError } = await supabaseClient
+        .from('contracts')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', contractId);
+      
+      if (updateError) throw updateError;
+      return new Response(JSON.stringify({ success: true, status: newStatus }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200 
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "Ação inválida." }), { status: 400, headers: corsHeaders });
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: corsHeaders })
+    console.error("[contract-state-machine] Global Error:", error.message);
+    return new Response(JSON.stringify({ error: error.message }), { 
+      status: 400, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
   }
 })
