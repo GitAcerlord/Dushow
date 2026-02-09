@@ -8,8 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from '@/integrations/supabase/client';
 
+const PLAN_FEES: Record<string, number> = {
+  'free': 0.15,
+  'pro': 0.10,
+  'premium': 0.07,
+  'elite': 0.02
+};
+
 const ProFinance = () => {
   const [ledger, setLedger] = useState<any[]>([]);
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,6 +29,9 @@ const ProFinance = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      const { data: profileData } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      setProfile(profileData);
 
       const { data } = await supabase
         .from('financial_ledger')
@@ -36,6 +47,8 @@ const ProFinance = () => {
     }
   };
 
+  const feePercentage = profile ? (PLAN_FEES[profile.plan_tier] || 0.15) : 0.15;
+
   const totals = {
     previsto: ledger.filter(l => l.status === 'PREVISTO').reduce((acc, curr) => acc + Number(curr.amount), 0),
     confirmado: ledger.filter(l => l.status === 'CONFIRMADO').reduce((acc, curr) => acc + Number(curr.amount), 0),
@@ -49,7 +62,7 @@ const ProFinance = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-black text-slate-900">Gestão Financeira</h1>
         <div className="flex items-center gap-2 bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold">
-          <Info className="w-4 h-4" /> Taxa da Plataforma: 15%
+          <Info className="w-4 h-4" /> Sua Taxa: {(feePercentage * 100).toFixed(0)}% (Plano {profile?.plan_tier?.toUpperCase()})
         </div>
       </div>
 
@@ -57,13 +70,13 @@ const ProFinance = () => {
         <Card className="p-8 bg-slate-50 border-none shadow-sm rounded-[2.5rem]">
           <p className="text-slate-400 text-xs font-black uppercase mb-2">Total Bruto Previsto</p>
           <h3 className="text-3xl font-black text-slate-900">R$ {totals.previsto.toLocaleString('pt-BR')}</h3>
-          <p className="text-[10px] text-amber-600 mt-2 font-bold">Valor antes das taxas</p>
+          <p className="text-[10px] text-amber-600 mt-2 font-bold">Valor total das propostas aceitas</p>
         </Card>
         
         <Card className="p-8 bg-indigo-600 text-white border-none shadow-xl rounded-[2.5rem]">
           <p className="text-indigo-200 text-xs font-black uppercase mb-2">Líquido Confirmado</p>
-          <h3 className="text-3xl font-black">R$ {(totals.confirmado * 0.85).toLocaleString('pt-BR')}</h3>
-          <p className="text-[10px] text-indigo-100 mt-2 font-bold">Já descontados os 15% da DUSHOW</p>
+          <h3 className="text-3xl font-black">R$ {(totals.confirmado * (1 - feePercentage)).toLocaleString('pt-BR')}</h3>
+          <p className="text-[10px] text-indigo-100 mt-2 font-bold">Já descontada sua taxa de {(feePercentage * 100).toFixed(0)}%</p>
         </Card>
 
         <Card className="p-8 bg-emerald-600 text-white border-none shadow-xl rounded-[2.5rem]">
@@ -80,7 +93,7 @@ const ProFinance = () => {
             <TableRow>
               <TableHead>Descrição</TableHead>
               <TableHead>Valor Bruto</TableHead>
-              <TableHead>Taxa DUSHOW (15%)</TableHead>
+              <TableHead>Taxa DUSHOW ({(feePercentage * 100).toFixed(0)}%)</TableHead>
               <TableHead>Líquido</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
@@ -90,8 +103,8 @@ const ProFinance = () => {
               <TableRow key={item.id}>
                 <TableCell className="font-bold">{item.description}</TableCell>
                 <TableCell className="text-slate-400 text-xs">R$ {Number(item.amount).toLocaleString('pt-BR')}</TableCell>
-                <TableCell className="text-red-400 text-xs">- R$ {(Number(item.amount) * 0.15).toLocaleString('pt-BR')}</TableCell>
-                <TableCell className="font-black text-indigo-600">R$ {(Number(item.amount) * 0.85).toLocaleString('pt-BR')}</TableCell>
+                <TableCell className="text-red-400 text-xs">- R$ {(Number(item.amount) * feePercentage).toLocaleString('pt-BR')}</TableCell>
+                <TableCell className="font-black text-indigo-600">R$ {(Number(item.amount) * (1 - feePercentage)).toLocaleString('pt-BR')}</TableCell>
                 <TableCell>
                   <Badge className={
                     item.status === 'RECEBIDO' ? 'bg-emerald-500 text-white' : 

@@ -9,6 +9,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Mapeamento de taxas por plano
+const PLAN_FEES: Record<string, number> = {
+  'free': 0.15,    // 15%
+  'pro': 0.10,     // 10%
+  'premium': 0.07, // 7%
+  'elite': 0.02    // 2%
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
@@ -25,7 +33,7 @@ serve(async (req) => {
 
     const { contractId, paymentMethodId } = await req.json()
 
-    // 1. Buscar dados do contrato e do artista
+    // 1. Buscar dados do contrato e do perfil do profissional (para ver o plano)
     const { data: contract, error: cError } = await supabaseClient
       .from('contracts')
       .select('*, pro:profiles!contracts_pro_id_fkey(*)')
@@ -34,7 +42,12 @@ serve(async (req) => {
 
     if (cError || !contract) throw new Error("Contrato não encontrado.")
 
-    // 2. Buscar token do cartão
+    // 2. Calcular taxa baseada no plano do profissional
+    const planTier = contract.pro?.plan_tier || 'free';
+    const feePercentage = PLAN_FEES[planTier] || 0.15;
+    const platformFee = Number(contract.value) * feePercentage;
+
+    // 3. Buscar token do cartão
     const { data: card } = await supabaseClient
       .from('payment_methods')
       .select('*')
@@ -43,7 +56,7 @@ serve(async (req) => {
 
     if (!card) throw new Error("Método de pagamento inválido.")
 
-    // 3. Criar/Buscar Cliente no Asaas (Simulado para este exemplo, em prod use o email do user)
+    // 4. Criar/Buscar Cliente no Asaas
     const customerResponse = await fetch(`${ASAAS_URL}/customers?email=${user.email}`, {
       headers: { 'access_token': ASAAS_API_KEY! }
     })
@@ -60,22 +73,20 @@ serve(async (req) => {
       asaasCustomerId = custData.id
     }
 
-    // 4. Criar Pagamento com SPLIT (15% para plataforma)
-    const platformFee = Number(contract.value) * 0.15
-    
+    // 5. Criar Pagamento com SPLIT DINÂMICO
     const paymentBody = {
       customer: asaasCustomerId,
       billingType: 'CREDIT_CARD',
       value: contract.value,
       dueDate: new Date().toISOString().split('T')[0],
-      description: `Contratação Artística: ${contract.event_name}`,
+      description: `Contratação DUSHOW: ${contract.event_name}`,
       externalReference: contract.id,
       creditCardToken: card.gateway_token,
       split: [
         {
-          walletId: 'PLATFORM_WALLET_ID', // Substitua pelo ID da sua carteira Asaas
+          walletId: 'PLATFORM_WALLET_ID', // ID da carteira master da DUSHOW no Asaas
           fixedValue: platformFee,
-          description: 'Taxa de Intermediação DUSHOW'
+          description: `Taxa de Intermediação (${(feePercentage * 100).toFixed(0)}% - Plano ${planTier.toUpperCase()})`
         }
       ]
     }
@@ -89,10 +100,10 @@ serve(async (req) => {
     const paymentData = await response.json()
     if (paymentData.errors) throw new Error(paymentData.errors[0].description)
 
-    // 5. Atualizar contrato para PAID
+    // 6. Atualizar contrato para PAID
     await supabaseClient.from('contracts').update({ status: 'PAID' }).eq('id', contractId)
 
-    return new Response(JSON.stringify({ success: true, paymentId: paymentData.id }), {
+    return new Response(JSON.stringify({ success: true, paymentId: paymentData.id, feeApplied: feePercentage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
