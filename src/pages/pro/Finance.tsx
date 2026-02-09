@@ -2,123 +2,131 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
-import { Wallet, TrendingUp, Clock, CreditCard, Loader2, ArrowUpRight, CheckCircle2, Info } from "lucide-react";
+import { Wallet, ArrowUpRight, Clock, CheckCircle2, Loader2, Send, Landmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from '@/integrations/supabase/client';
-
-const PLAN_FEES: Record<string, number> = {
-  'free': 0.15,
-  'pro': 0.10,
-  'premium': 0.07,
-  'elite': 0.02
-};
+import { showSuccess, showError } from '@/utils/toast';
 
 const ProFinance = () => {
-  const [ledger, setLedger] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [pixKey, setPixKey] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchFinanceData();
+    fetchData();
   }, []);
 
-  const fetchFinanceData = async () => {
+  const fetchData = async () => {
     setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profileData } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-      setProfile(profileData);
-
-      const { data } = await supabase
-        .from('financial_ledger')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      setLedger(data || []);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      setProfile(data);
     }
+    setLoading(false);
   };
 
-  const feePercentage = profile ? (PLAN_FEES[profile.plan_tier] || 0.15) : 0.15;
+  const handleWithdraw = async () => {
+    const amount = parseFloat(withdrawAmount);
+    if (amount > profile.balance_available) return showError("Saldo insuficiente.");
+    if (amount < 10) return showError("Valor mínimo de saque: R$ 10,00");
 
-  const totals = {
-    previsto: ledger.filter(l => l.status === 'PREVISTO').reduce((acc, curr) => acc + Number(curr.amount), 0),
-    confirmado: ledger.filter(l => l.status === 'CONFIRMADO').reduce((acc, curr) => acc + Number(curr.amount), 0),
-    recebido: ledger.filter(l => l.status === 'RECEBIDO').reduce((acc, curr) => acc + Number(curr.amount), 0),
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from('withdrawals').insert({
+        user_id: profile.id,
+        amount: amount,
+        pix_key: pixKey,
+        pix_key_type: 'RANDOM', // Simplificado
+        status: 'PENDING'
+      });
+
+      if (error) throw error;
+
+      // Deduzir do saldo disponível imediatamente (UI)
+      await supabase.from('profiles').update({ 
+        balance_available: profile.balance_available - amount 
+      }).eq('id', profile.id);
+
+      showSuccess("Solicitação de saque enviada! Prazo: 24h úteis.");
+      fetchData();
+    } catch (e) {
+      showError("Erro ao solicitar saque.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (loading) return <div className="p-20 flex justify-center"><Loader2 className="animate-spin text-indigo-600" /></div>;
 
   return (
-    <div className="p-8 space-y-8 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-black text-slate-900">Gestão Financeira</h1>
-        <div className="flex items-center gap-2 bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold">
-          <Info className="w-4 h-4" /> Sua Taxa: {(feePercentage * 100).toFixed(0)}% (Plano {profile?.plan_tier?.toUpperCase()})
-        </div>
+    <div className="p-8 space-y-8 max-w-5xl mx-auto">
+      <h1 className="text-3xl font-black text-slate-900">Minha Carteira</h1>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="p-8 border-none shadow-sm bg-slate-50 rounded-[2.5rem] space-y-4">
+          <div className="flex items-center gap-2 text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+            <Clock className="w-4 h-4" /> Saldo em Escrow (Pendente)
+          </div>
+          <h3 className="text-4xl font-black text-slate-400">R$ {Number(profile.balance_pending || 0).toLocaleString('pt-BR')}</h3>
+          <p className="text-xs text-slate-400">Liberado após a confirmação do contratante.</p>
+        </Card>
+
+        <Card className="p-8 border-none shadow-2xl bg-indigo-600 text-white rounded-[2.5rem] space-y-6">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-indigo-200 font-bold uppercase text-[10px] tracking-widest">
+              <CheckCircle2 className="w-4 h-4" /> Saldo Disponível
+            </div>
+            <h3 className="text-5xl font-black">R$ {Number(profile.balance_available || 0).toLocaleString('pt-BR')}</h3>
+          </div>
+
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="w-full h-14 bg-white text-indigo-600 hover:bg-indigo-50 rounded-2xl font-black text-lg gap-2">
+                <Send className="w-5 h-5" /> Solicitar Saque PIX
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="rounded-[2.5rem]">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-black">Saque via PIX</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Valor do Saque</Label>
+                  <Input 
+                    type="number" 
+                    placeholder="0,00" 
+                    value={withdrawAmount} 
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                    className="h-12 bg-slate-50 border-none rounded-xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Chave PIX</Label>
+                  <Input 
+                    placeholder="CPF, E-mail ou Chave Aleatória" 
+                    value={pixKey} 
+                    onChange={(e) => setPixKey(e.target.value)}
+                    className="h-12 bg-slate-50 border-none rounded-xl"
+                  />
+                </div>
+                <Button 
+                  onClick={handleWithdraw} 
+                  disabled={isSubmitting || !withdrawAmount || !pixKey}
+                  className="w-full h-14 bg-indigo-600 rounded-2xl font-black"
+                >
+                  {isSubmitting ? <Loader2 className="animate-spin" /> : "Confirmar Saque"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </Card>
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="p-8 bg-slate-50 border-none shadow-sm rounded-[2.5rem]">
-          <p className="text-slate-400 text-xs font-black uppercase mb-2">Total Bruto Previsto</p>
-          <h3 className="text-3xl font-black text-slate-900">R$ {totals.previsto.toLocaleString('pt-BR')}</h3>
-          <p className="text-[10px] text-amber-600 mt-2 font-bold">Valor total das propostas aceitas</p>
-        </Card>
-        
-        <Card className="p-8 bg-indigo-600 text-white border-none shadow-xl rounded-[2.5rem]">
-          <p className="text-indigo-200 text-xs font-black uppercase mb-2">Líquido Confirmado</p>
-          <h3 className="text-3xl font-black">R$ {(totals.confirmado * (1 - feePercentage)).toLocaleString('pt-BR')}</h3>
-          <p className="text-[10px] text-indigo-100 mt-2 font-bold">Já descontada sua taxa de {(feePercentage * 100).toFixed(0)}%</p>
-        </Card>
-
-        <Card className="p-8 bg-emerald-600 text-white border-none shadow-xl rounded-[2.5rem]">
-          <p className="text-emerald-100 text-xs font-black uppercase mb-2">Total Recebido</p>
-          <h3 className="text-3xl font-black">R$ {totals.recebido.toLocaleString('pt-BR')}</h3>
-          <p className="text-[10px] text-emerald-100 mt-2 font-bold">Saldo disponível para saque</p>
-        </Card>
-      </div>
-
-      <Card className="border-none shadow-sm bg-white overflow-hidden rounded-[2rem]">
-        <div className="p-6 border-b font-black text-slate-900">Extrato Financeiro Auditável</div>
-        <Table>
-          <TableHeader className="bg-slate-50">
-            <TableRow>
-              <TableHead>Descrição</TableHead>
-              <TableHead>Valor Bruto</TableHead>
-              <TableHead>Taxa DUSHOW ({(feePercentage * 100).toFixed(0)}%)</TableHead>
-              <TableHead>Líquido</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {ledger.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell className="font-bold">{item.description}</TableCell>
-                <TableCell className="text-slate-400 text-xs">R$ {Number(item.amount).toLocaleString('pt-BR')}</TableCell>
-                <TableCell className="text-red-400 text-xs">- R$ {(Number(item.amount) * feePercentage).toLocaleString('pt-BR')}</TableCell>
-                <TableCell className="font-black text-indigo-600">R$ {(Number(item.amount) * (1 - feePercentage)).toLocaleString('pt-BR')}</TableCell>
-                <TableCell>
-                  <Badge className={
-                    item.status === 'RECEBIDO' ? 'bg-emerald-500 text-white' : 
-                    item.status === 'CONFIRMADO' ? 'bg-indigo-500 text-white' : 
-                    item.status === 'CANCELADO' ? 'bg-red-500 text-white' : 'bg-amber-500 text-white'
-                  }>
-                    {item.status}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
     </div>
   );
 };
