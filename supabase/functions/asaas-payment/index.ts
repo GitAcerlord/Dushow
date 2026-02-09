@@ -2,7 +2,6 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const ASAAS_API_KEY = Deno.env.get('ASAAS_API_KEY')
-const ASAAS_WALLET_ID = Deno.env.get('ASAAS_WALLET_ID') // ID da sua carteira para receber a comissão
 const ASAAS_URL = 'https://www.asaas.com/api/v3'
 
 const corsHeaders = {
@@ -33,7 +32,7 @@ serve(async (req) => {
 
     const { contractId, paymentMethodId } = await req.json()
 
-    // 1. Buscar dados do contrato e do profissional
+    // 1. Buscar contrato e carteira do artista
     const { data: contract, error: cError } = await supabaseClient
       .from('contracts')
       .select('*, pro:profiles!contracts_pro_id_fkey(*)')
@@ -41,11 +40,19 @@ serve(async (req) => {
       .single()
 
     if (cError || !contract) throw new Error("Contrato não encontrado.")
+    
+    // VALIDAÇÃO OBRIGATÓRIA: Profissional precisa ter Wallet Asaas para split
+    if (!contract.pro?.asaas_wallet_id) {
+      throw new Error("O artista ainda não configurou sua Carteira Asaas para receber pagamentos.");
+    }
 
-    // 2. Calcular taxa
+    // 2. Calcular divisões
+    const totalValue = Number(contract.value);
     const planTier = contract.pro?.plan_tier || 'free';
     const feePercentage = PLAN_FEES[planTier] || 0.15;
-    const platformFee = Number(contract.value) * feePercentage;
+    
+    const platformShare = totalValue * feePercentage;
+    const artistShare = totalValue - platformShare;
 
     // 3. Buscar cartão
     const { data: card } = await supabaseClient
@@ -56,7 +63,7 @@ serve(async (req) => {
 
     if (!card) throw new Error("Cartão não encontrado.")
 
-    // 4. Criar/Buscar Cliente no Asaas
+    // 4. Criar/Buscar Cliente
     const customerResponse = await fetch(`${ASAAS_URL}/customers?email=${user.email}`, {
       headers: { 'access_token': ASAAS_API_KEY! }
     })
@@ -67,38 +74,30 @@ serve(async (req) => {
       const newCust = await fetch(`${ASAAS_URL}/customers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'access_token': ASAAS_API_KEY! },
-        body: JSON.stringify({ 
-          name: user.user_metadata.full_name || user.email, 
-          email: user.email,
-          externalReference: user.id
-        })
+        body: JSON.stringify({ name: user.user_metadata.full_name, email: user.email })
       })
       const custData = await newCust.json()
-      if (custData.errors) throw new Error(`Erro ao criar cliente Asaas: ${custData.errors[0].description}`)
       asaasCustomerId = custData.id
     }
 
-    // 5. Criar Pagamento
-    const paymentBody: any = {
+    // 5. Criar Pagamento com SPLIT CORRETO
+    // A cobrança entra na conta DUSHOW, e o split manda a parte do ARTISTA para ele.
+    const paymentBody = {
       customer: asaasCustomerId,
       billingType: 'CREDIT_CARD',
-      value: contract.value,
+      value: totalValue,
       dueDate: new Date().toISOString().split('T')[0],
-      description: `Contratação DUSHOW: ${contract.event_name}`,
+      description: `Contratação: ${contract.event_name}`,
       externalReference: contract.id,
-      creditCardToken: card.gateway_token
+      creditCardToken: card.gateway_token,
+      split: [
+        {
+          walletId: contract.pro.asaas_wallet_id, // Wallet do ARTISTA
+          fixedValue: artistShare,
+          description: `Repasse de Cachê (Descontada taxa de ${(feePercentage * 100).toFixed(0)}%)`
+        }
+      ]
     }
-
-    // Adicionar split apenas se o Wallet ID estiver configurado
-    if (ASAAS_WALLET_ID && ASAAS_WALLET_ID !== 'PLATFORM_WALLET_ID') {
-      paymentBody.split = [{
-        walletId: ASAAS_WALLET_ID,
-        fixedValue: platformFee,
-        description: `Comissão DUSHOW (${(feePercentage * 100).toFixed(0)}%)`
-      }]
-    }
-
-    console.log("[asaas-payment] Enviando cobrança:", JSON.stringify(paymentBody));
 
     const response = await fetch(`${ASAAS_URL}/payments`, {
       method: 'POST',
@@ -107,25 +106,16 @@ serve(async (req) => {
     })
 
     const paymentData = await response.json()
-    
-    if (paymentData.errors) {
-      console.error("[asaas-payment] Erro da API Asaas:", paymentData.errors);
-      throw new Error(paymentData.errors[0].description);
-    }
+    if (paymentData.errors) throw new Error(paymentData.errors[0].description)
 
-    // 6. Sucesso: Atualizar contrato e registrar no ledger
     await supabaseClient.from('contracts').update({ status: 'PAID' }).eq('id', contractId)
-    
-    return new Response(JSON.stringify({ success: true, paymentId: paymentData.id }), {
+
+    return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
   } catch (error: any) {
-    console.error("[asaas-payment] Erro Crítico:", error.message)
-    return new Response(JSON.stringify({ error: error.message }), { 
-      status: 400, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    })
+    return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: corsHeaders })
   }
 })
