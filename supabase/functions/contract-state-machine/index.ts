@@ -15,14 +15,15 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // SECURITY: Verify JWT and get actual User ID
     const authHeader = req.headers.get('Authorization')!
     const token = authHeader.replace('Bearer ', '')
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
     if (authError || !user) throw new Error("Unauthorized access")
 
-    const { contractId, action, payload } = await req.json()
-    const userId = user.id // Use verified ID from JWT
+    const body = await req.json()
+    const { contractId, action } = body
+    const payload = body.payload || {} // Fallback para payload vazio
+    const userId = user.id
     
     const { data: contract, error: fetchError } = await supabaseClient
       .from('contracts')
@@ -31,44 +32,31 @@ serve(async (req) => {
       .single()
 
     if (fetchError || !contract) throw new Error("Contrato não localizado.");
-
-    // Ensure the user is part of the contract
-    if (contract.client_id !== userId && contract.pro_id !== userId) {
-      throw new Error("Acesso negado a este contrato.");
-    }
+    if (contract.client_id !== userId && contract.pro_id !== userId) throw new Error("Acesso negado.");
 
     let nextStatus = contract.status;
     let ledgerStatus: string | null = null;
     const oldStatus = contract.status;
 
     if (action === 'COUNTER_PROPOSAL') {
-      if (contract.status === 'SIGNED' || contract.status === 'COMPLETED') {
-        throw new Error("Contrato assinado não pode ser alterado.");
-      }
-      if (contract.current_version_id) {
-        await supabaseClient.from('contract_versions').update({ is_active: false }).eq('id', contract.current_version_id);
-      }
+      if (contract.status === 'SIGNED' || contract.status === 'COMPLETED') throw new Error("Contrato assinado não pode ser alterado.");
+      
       const { data: newVersion, error: vError } = await supabaseClient
         .from('contract_versions')
         .insert({
           contract_id: contractId,
-          value: payload.value,
-          event_date: payload.event_date,
-          event_location: payload.event_location,
+          value: payload.value || contract.value,
+          event_date: payload.event_date || contract.event_date,
+          event_location: payload.event_location || contract.event_location,
           terms: payload.terms,
           created_by_id: userId,
           created_by_role: payload.role,
           is_active: true
         })
-        .select()
-        .single();
+        .select().single();
+      
       if (vError) throw vError;
-      await supabaseClient.from('contracts').update({ 
-        current_version_id: newVersion.id,
-        status: 'PENDING',
-        value: payload.value,
-        event_date: payload.event_date
-      }).eq('id', contractId);
+      await supabaseClient.from('contracts').update({ current_version_id: newVersion.id, status: 'PENDING' }).eq('id', contractId);
       nextStatus = 'PENDING';
     } 
     else if (action === 'ACCEPT') {
@@ -79,15 +67,12 @@ serve(async (req) => {
       const { error: sError } = await supabaseClient.from('contract_signatures').insert({
         contract_id: contractId,
         user_id: userId,
-        user_role: payload.role,
-        ip_address: req.headers.get('x-real-ip') || 'unknown',
-        user_agent: req.headers.get('user-agent')
+        user_role: payload.role || 'UNKNOWN',
+        ip_address: req.headers.get('x-real-ip') || 'unknown'
       });
       if (sError) throw new Error("Você já assinou este contrato.");
-      const { count } = await supabaseClient
-        .from('contract_signatures')
-        .select('*', { count: 'exact', head: true })
-        .eq('contract_id', contractId);
+      
+      const { count } = await supabaseClient.from('contract_signatures').select('*', { count: 'exact', head: true }).eq('contract_id', contractId);
       if (count === 2) {
         nextStatus = 'SIGNED';
         ledgerStatus = 'CONFIRMADO';
@@ -96,10 +81,6 @@ serve(async (req) => {
     else if (action === 'COMPLETE') {
       nextStatus = 'COMPLETED';
       ledgerStatus = 'RECEBIDO';
-    }
-    else if (action === 'CANCEL') {
-      nextStatus = 'CANCELED';
-      ledgerStatus = 'CANCELADO';
     }
 
     if (nextStatus !== oldStatus) {

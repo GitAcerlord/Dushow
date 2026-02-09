@@ -63,7 +63,6 @@ const Feed = () => {
       setHasMore(postsData.length === POSTS_PER_PAGE);
       setPosts(prev => append ? [...prev, ...postsData] : postsData);
     } catch (error: any) {
-      console.error("[Feed] Error fetching posts:", error);
       showError("Erro ao carregar o feed.");
     } finally {
       setLoading(false);
@@ -71,14 +70,11 @@ const Feed = () => {
     }
   }, []);
 
-  useEffect(() => { 
-    fetchData(0); 
-  }, [fetchData]);
+  useEffect(() => { fetchData(0); }, [fetchData]);
 
   const handlePost = async () => {
     if (!postContent.trim() || !userProfile) return;
     setIsPosting(true);
-    
     const tagsArray = postTags.split(',').map(t => t.trim()).filter(t => t !== "");
 
     try {
@@ -99,19 +95,10 @@ const Feed = () => {
           tags: tagsArray
         });
         if (error) throw error;
-        
-        // Gamificação Real
-        await supabase.from('profiles').update({ 
-          xp_total: (userProfile.xp_total || 0) + 5 
-        }).eq('id', userProfile.id);
-        
+        await supabase.from('profiles').update({ xp_total: (userProfile.xp_total || 0) + 5 }).eq('id', userProfile.id);
         showSuccess("Publicado! +5 XP.");
       }
-
-      setPostContent("");
-      setPostImage("");
-      setPostTags("");
-      setEditingPost(null);
+      setPostContent(""); setPostImage(""); setPostTags(""); setEditingPost(null);
       fetchData(0);
     } catch (error: any) {
       showError(error.message);
@@ -122,51 +109,21 @@ const Feed = () => {
 
   const handleDelete = async (postId: string) => {
     try {
-      // 1. Buscar dados do post para limpeza de storage
-      const { data: post, error: fetchError } = await supabase
-        .from('posts')
-        .select('image_url, author_id')
-        .eq('id', postId)
-        .single();
+      // Chamada para a Edge Function que tem permissão de service_role
+      const { data, error } = await supabase.functions.invoke('delete-post', {
+        body: { postId }
+      });
 
-      if (fetchError || !post) throw new Error("Post não encontrado.");
-      if (post.author_id !== userProfile.id) throw new Error("Permissão negada.");
-
-      // 2. Limpeza de Storage (se houver imagem)
-      if (post.image_url && post.image_url.includes('supabase.co/storage')) {
-        const urlParts = post.image_url.split('/');
-        const fileName = urlParts[urlParts.length - 1];
-        const bucketName = 'posts'; // Ajuste conforme seu bucket real
-        
-        const { error: storageError } = await supabase.storage
-          .from(bucketName)
-          .remove([fileName]);
-        
-        if (storageError) console.warn("[Feed] Storage cleanup failed:", storageError);
+      if (error) {
+        const errorBody = await error.context?.json();
+        throw new Error(errorBody?.error || error.message);
       }
 
-      // 3. Exclusão em cascata no banco (Likes e Comments via RLS/DB ou manual)
-      // Nota: Se o banco tiver ON DELETE CASCADE, isso é automático. 
-      // Caso contrário, limpamos manualmente para garantir integridade.
-      await supabase.from('post_likes').delete().eq('post_id', postId);
-      await supabase.from('post_comments').delete().eq('post_id', postId);
-
-      // 4. Exclusão do registro principal
-      const { error: deleteError } = await supabase
-        .from('posts')
-        .delete()
-        .eq('id', postId);
-
-      if (deleteError) throw deleteError;
-
-      // 5. Log de Auditoria (Simulado via console, idealmente em tabela de logs)
-      console.log(`[AUDIT] POST_DELETED | ID: ${postId} | User: ${userProfile.id} | TS: ${new Date().toISOString()}`);
-
       setPosts(prev => prev.filter(p => p.id !== postId));
-      showSuccess("Post e arquivos removidos permanentemente.");
+      showSuccess("Post e engajamento removidos com sucesso.");
     } catch (error: any) {
-      console.error("[Feed] Critical Delete Error:", error);
-      showError(error.message || "Falha na exclusão real do post.");
+      console.error("Delete Error:", error);
+      showError(error.message || "Falha na exclusão segura do post.");
     }
   };
 
@@ -194,8 +151,8 @@ const Feed = () => {
                 <Input placeholder="https://..." value={postImage} onChange={(e) => setPostImage(e.target.value)} className="bg-slate-50 border-none rounded-xl h-9 text-xs" />
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1"><TagIcon className="w-3 h-3" /> Tags (separadas por vírgula)</Label>
-                <Input placeholder="show, casamento, dj" value={postTags} onChange={(e) => setPostTags(e.target.value)} className="bg-slate-50 border-none rounded-xl h-9 text-xs" />
+                <Label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1"><TagIcon className="w-3 h-3" /> Tags</Label>
+                <Input placeholder="show, dj" value={postTags} onChange={(e) => setPostTags(e.target.value)} className="bg-slate-50 border-none rounded-xl h-9 text-xs" />
               </div>
             </div>
             <div className="flex justify-between items-center pt-2">
