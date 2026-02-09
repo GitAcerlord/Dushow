@@ -70,11 +70,16 @@ const Checkout = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        // Tenta extrair a mensagem de erro real da Edge Function
+        const errorMsg = await error.context?.json();
+        throw new Error(errorMsg?.error || error.message);
+      }
 
       showSuccess("Pagamento aprovado! O valor está seguro em Escrow.");
       navigate('/client/payments');
     } catch (error: any) {
+      console.error("Checkout Error:", error);
       showError(error.message || "Erro no processamento via Asaas.");
     } finally {
       setIsProcessing(false);
