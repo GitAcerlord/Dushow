@@ -5,7 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
-  ShieldCheck, CreditCard, ArrowLeft, Loader2, Lock, CheckCircle2, Plus, ChevronRight 
+  ShieldCheck, CreditCard, ArrowLeft, Loader2, Lock, CheckCircle2, Plus 
 } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from "@/utils/toast";
@@ -63,21 +63,19 @@ const Checkout = () => {
 
     setIsProcessing(true);
     try {
-      // Simulação de processamento via Edge Function
-      const { data, error } = await supabase.functions.invoke('stripe-checkout', {
+      const { data, error } = await supabase.functions.invoke('asaas-payment', {
         body: {
           contractId: contractId,
-          paymentMethodId: selectedCardId,
-          amount: artist.price
+          paymentMethodId: selectedCardId
         }
       });
 
       if (error) throw error;
 
-      showSuccess("Pagamento realizado com sucesso! O valor está em Escrow.");
+      showSuccess("Pagamento aprovado! O valor está seguro em Escrow.");
       navigate('/client/payments');
     } catch (error: any) {
-      showError(error.message || "Erro no processamento financeiro.");
+      showError(error.message || "Erro no processamento via Asaas.");
     } finally {
       setIsProcessing(false);
     }
@@ -137,9 +135,9 @@ const Checkout = () => {
           <Card className="p-6 border-none bg-emerald-50 rounded-[2rem] flex gap-4 items-start">
             <ShieldCheck className="text-emerald-600 w-6 h-6 shrink-0" />
             <div className="space-y-1">
-              <h4 className="font-black text-emerald-900 text-sm">Garantia DUSHOW</h4>
+              <h4 className="font-black text-emerald-900 text-sm">Garantia DUSHOW & Asaas</h4>
               <p className="text-xs text-emerald-700 leading-relaxed">
-                Seu pagamento ficará retido com segurança. O artista só recebe após a realização do evento e sua confirmação final.
+                Seu pagamento fica retido com segurança. O artista só recebe após a realização do evento e sua confirmação final.
               </p>
             </div>
           </Card>
@@ -170,7 +168,7 @@ const Checkout = () => {
               {isProcessing ? <Loader2 className="animate-spin" /> : "Confirmar e Pagar"}
             </Button>
             <div className="flex items-center gap-2 text-[10px] text-center text-slate-400 justify-center">
-              <Lock className="w-3 h-3" /> Pagamento 100% Seguro
+              <Lock className="w-3 h-3" /> Pagamento Processado via Asaas
             </div>
           </Card>
         </div>
