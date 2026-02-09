@@ -16,13 +16,16 @@ import { Label } from "@/components/ui/label";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { getSafeImageUrl } from '@/utils/url-validator';
+import { cn } from '@/lib/utils';
 
 const Discovery = () => {
   const navigate = useNavigate();
   const [artists, setArtists] = useState<any[]>([]);
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   
   const [selectedArtist, setSelectedArtist] = useState<any>(null);
   const [proposalData, setProposalData] = useState({
@@ -32,11 +35,19 @@ const Discovery = () => {
   });
 
   useEffect(() => {
-    fetchArtists();
+    init();
   }, []);
 
-  const fetchArtists = async () => {
+  const init = async () => {
     setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    setCurrentUser(user);
+
+    if (user) {
+      const { data: favs } = await supabase.from('favorites').select('artist_id').eq('user_id', user.id);
+      setFavorites(favs?.map(f => f.artist_id) || []);
+    }
+
     const { data } = await supabase
       .from('profiles')
       .select('*')
@@ -46,6 +57,25 @@ const Discovery = () => {
     
     setArtists(data || []);
     setLoading(false);
+  };
+
+  const toggleFavorite = async (artistId: string) => {
+    if (!currentUser) return navigate('/login');
+
+    const isFav = favorites.includes(artistId);
+    try {
+      if (isFav) {
+        await supabase.from('favorites').delete().eq('user_id', currentUser.id).eq('artist_id', artistId);
+        setFavorites(prev => prev.filter(id => id !== artistId));
+        showSuccess("Removido dos favoritos.");
+      } else {
+        await supabase.from('favorites').insert({ user_id: currentUser.id, artist_id: artistId });
+        setFavorites(prev => [...prev, artistId]);
+        showSuccess("Adicionado aos favoritos!");
+      }
+    } catch (e) {
+      showError("Erro ao atualizar favoritos.");
+    }
   };
 
   const handleSendProposal = async () => {
@@ -122,9 +152,13 @@ const Discovery = () => {
                 <Button 
                   variant="secondary" 
                   size="icon" 
-                  className="absolute top-3 right-3 rounded-full bg-white/20 backdrop-blur-md border-none text-white hover:bg-white hover:text-red-500"
+                  onClick={() => toggleFavorite(artist.id)}
+                  className={cn(
+                    "absolute top-3 right-3 rounded-full backdrop-blur-md border-none transition-all",
+                    favorites.includes(artist.id) ? "bg-red-500 text-white" : "bg-white/20 text-white hover:bg-white hover:text-red-500"
+                  )}
                 >
-                  <Heart className="w-4 h-4" />
+                  <Heart className={cn("w-4 h-4", favorites.includes(artist.id) && "fill-current")} />
                 </Button>
               </div>
 

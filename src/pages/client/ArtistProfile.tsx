@@ -11,6 +11,8 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { getSafeImageUrl } from '@/utils/url-validator';
 import ReviewCard from '@/components/reviews/ReviewCard';
+import { showSuccess, showError } from '@/utils/toast';
+import { cn } from '@/lib/utils';
 
 const ArtistProfile = () => {
   const { id } = useParams();
@@ -18,6 +20,8 @@ const ArtistProfile = () => {
   const [artist, setArtist] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
     fetchArtistData();
@@ -26,8 +30,16 @@ const ArtistProfile = () => {
   const fetchArtistData = async () => {
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', id).single();
       setArtist(profile);
+
+      if (user) {
+        const { data: fav } = await supabase.from('favorites').select('id').eq('user_id', user.id).eq('artist_id', id).maybeSingle();
+        setIsFavorite(!!fav);
+      }
 
       const { data: reviewsData } = await supabase
         .from('reviews')
@@ -40,6 +52,24 @@ const ArtistProfile = () => {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleFavorite = async () => {
+    if (!currentUser) return navigate('/login');
+
+    try {
+      if (isFavorite) {
+        await supabase.from('favorites').delete().eq('user_id', currentUser.id).eq('artist_id', id);
+        setIsFavorite(false);
+        showSuccess("Removido dos favoritos.");
+      } else {
+        await supabase.from('favorites').insert({ user_id: currentUser.id, artist_id: id });
+        setIsFavorite(true);
+        showSuccess("Adicionado aos favoritos!");
+      }
+    } catch (e) {
+      showError("Erro ao atualizar favoritos.");
     }
   };
 
@@ -117,8 +147,16 @@ const ArtistProfile = () => {
               >
                 Solicitar Proposta
               </Button>
-              <Button variant="outline" className="w-full h-12 rounded-2xl font-bold gap-2 border-slate-200">
-                <Heart className="w-4 h-4" /> Salvar nos Favoritos
+              <Button 
+                variant="outline" 
+                onClick={toggleFavorite}
+                className={cn(
+                  "w-full h-12 rounded-2xl font-bold gap-2 border-slate-200 transition-all",
+                  isFavorite ? "bg-red-50 text-red-600 border-red-100" : "hover:bg-slate-50"
+                )}
+              >
+                <Heart className={cn("w-4 h-4", isFavorite && "fill-current")} /> 
+                {isFavorite ? "Salvo nos Favoritos" : "Salvar nos Favoritos"}
               </Button>
             </div>
             <div className="pt-6 border-t space-y-4">

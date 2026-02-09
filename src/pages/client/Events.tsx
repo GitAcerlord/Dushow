@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { 
-  Calendar, MapPin, FileText, Loader2, ArrowRight, Clock, CreditCard, MessageSquare, Filter, X
+  Calendar, MapPin, FileText, Loader2, ArrowRight, Clock, CreditCard, MessageSquare, Filter, X, User
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from '@/integrations/supabase/client';
@@ -17,7 +17,6 @@ const ClientEvents = () => {
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Estados de Filtro
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
@@ -25,7 +24,7 @@ const ClientEvents = () => {
     fetchEvents();
   }, []);
 
-  const fetchEvents = async (isFiltering = false) => {
+  const fetchEvents = async () => {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -36,12 +35,11 @@ const ClientEvents = () => {
         .select('*, pro:profiles!contracts_pro_id_fkey(id, full_name, avatar_url, price)')
         .eq('client_id', user.id);
 
-      // Filtro de Data no Servidor (SSOT)
-      if (startDate) {
+      // Correção: Só aplica o filtro se a string de data for válida
+      if (startDate && startDate !== "") {
         query = query.gte('event_date', new Date(startDate).toISOString());
       }
-      if (endDate) {
-        // Adiciona 23:59:59 ao fim do dia para busca inclusiva
+      if (endDate && endDate !== "") {
         const end = new Date(endDate);
         end.setHours(23, 59, 59);
         query = query.lte('event_date', end.toISOString());
@@ -61,7 +59,8 @@ const ClientEvents = () => {
   const clearFilters = () => {
     setStartDate("");
     setEndDate("");
-    fetchEvents();
+    // Chamada direta para resetar
+    setTimeout(() => fetchEvents(), 10);
   };
 
   if (loading && events.length === 0) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin text-blue-600 w-10 h-10" /></div>;
@@ -74,7 +73,6 @@ const ClientEvents = () => {
           <p className="text-slate-500">Acompanhe o status das suas contratações e negociações.</p>
         </div>
 
-        {/* Barra de Filtros */}
         <Card className="p-4 border-none shadow-sm bg-white flex flex-wrap items-center gap-4 rounded-2xl w-full md:w-auto">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-slate-400" />
@@ -96,7 +94,7 @@ const ClientEvents = () => {
             />
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => fetchEvents(true)} size="sm" className="bg-blue-600 h-9 rounded-lg px-4 font-bold">Aplicar</Button>
+            <Button onClick={() => fetchEvents()} size="sm" className="bg-blue-600 h-9 rounded-lg px-4 font-bold">Aplicar</Button>
             {(startDate || endDate) && (
               <Button onClick={clearFilters} variant="ghost" size="sm" className="h-9 rounded-lg text-slate-400 hover:text-red-500">
                 <X className="w-4 h-4" />
@@ -133,7 +131,7 @@ const ClientEvents = () => {
                   <h3 className="text-xl font-black text-slate-900">{event.event_name}</h3>
                   <Badge className={cn(
                     "uppercase text-[10px] font-black px-4 py-1.5 rounded-full border-none shadow-sm",
-                    event.status === 'PAID' ? 'bg-emerald-500 text-white' : 
+                    event.status === 'PAID' ? 'bg-emerald-50 text-emerald-600' : 
                     event.status === 'ACCEPTED' ? 'bg-blue-500 text-white' :
                     event.status === 'PENDING' ? 'bg-amber-500 text-white' : 
                     event.status === 'CANCELLED' ? 'bg-slate-200 text-slate-500' : 'bg-slate-100 text-slate-500'
