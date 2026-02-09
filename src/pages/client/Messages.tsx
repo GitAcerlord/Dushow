@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, MessageSquare, Calendar } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 const ClientMessages = () => {
   const [conversations, setConversations] = useState<any[]>([]);
@@ -21,8 +22,6 @@ const ClientMessages = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Filtro: Mostra negociações em andamento, aceitas, assinadas ou recém-pagas.
-    // Removemos apenas o que foi concluído (COMPLETED), rejeitado (REJECTED) ou cancelado.
     const { data: contracts, error } = await supabase
       .from('contracts')
       .select(`
@@ -33,7 +32,7 @@ const ClientMessages = () => {
       `)
       .eq('client_id', user.id)
       .in('status', ['PENDING', 'ACCEPTED', 'SIGNED', 'PAID', 'CREATED'])
-      .order('updated_at', { ascending: false });
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error("Erro ao carregar conversas:", error);

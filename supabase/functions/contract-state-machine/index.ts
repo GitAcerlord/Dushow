@@ -26,27 +26,22 @@ serve(async (req) => {
     if (fetchError || !contract) throw new Error("Contrato não localizado.");
 
     if (action === 'COMPLETE_EVENT') {
-      // Segurança: Apenas o contratante pode liberar o dinheiro
       if (contract.client_id !== userId) throw new Error("Apenas o contratante pode liberar o pagamento.");
       if (contract.status !== 'PAID') throw new Error("O contrato ainda não foi pago ou já foi concluído.");
 
-      const feePercentage = 0.15; // Idealmente buscar do plano do artista
+      const feePercentage = 0.15;
       const artistNet = Number(contract.value) * (1 - feePercentage);
 
-      // Chamada RPC com nomes de parâmetros explícitos
       const { error: rpcError } = await supabaseClient.rpc('release_artist_funds', {
         artist_id: contract.pro_id,
         amount: artistNet
       });
 
-      if (rpcError) {
-        console.error("[contract-state-machine] RPC Error:", rpcError);
-        throw new Error("Erro interno ao processar saldo no banco de dados.");
-      }
+      if (rpcError) throw new Error("Erro interno ao processar saldo.");
 
       const { error: updateError } = await supabaseClient
         .from('contracts')
-        .update({ status: 'COMPLETED', updated_at: new Date().toISOString() })
+        .update({ status: 'COMPLETED' })
         .eq('id', contractId);
 
       if (updateError) throw updateError;
@@ -57,12 +52,11 @@ serve(async (req) => {
       });
     }
 
-    // Outras ações (ACCEPT, REJECT)
     if (action === 'ACCEPT' || action === 'REJECT') {
       const newStatus = action === 'ACCEPT' ? 'ACCEPTED' : 'REJECTED';
       const { error: updateError } = await supabaseClient
         .from('contracts')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .update({ status: newStatus })
         .eq('id', contractId);
       
       if (updateError) throw updateError;
@@ -75,7 +69,6 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: "Ação inválida." }), { status: 400, headers: corsHeaders });
 
   } catch (error: any) {
-    console.error("[contract-state-machine] Global Error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), { 
       status: 400, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
