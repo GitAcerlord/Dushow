@@ -51,6 +51,7 @@ import ClientPayments from "./pages/client/Payments";
 import ClientProfile from "./pages/client/Profile";
 import ClientFeed from "./pages/client/Feed";
 import ArtistProfile from "./pages/client/ArtistProfile";
+import PaymentMethods from "./pages/client/PaymentMethods";
 
 const queryClient = new QueryClient();
 
@@ -119,6 +120,7 @@ const App = () => (
             <Route path="messages" element={<ClientMessages />} />
             <Route path="favorites" element={<Favorites />} />
             <Route path="payments" element={<ClientPayments />} />
+            <Route path="payment-methods" element={<PaymentMethods />} />
             <Route path="artist/:id" element={<ArtistProfile />} />
           </Route>
 
