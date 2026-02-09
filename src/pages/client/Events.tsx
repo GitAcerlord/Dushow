@@ -35,7 +35,6 @@ const ClientEvents = () => {
         .select('*, pro:profiles!contracts_pro_id_fkey(id, full_name, avatar_url, price)')
         .eq('client_id', user.id);
 
-      // Correção: Só aplica o filtro se a string de data for válida
       if (startDate && startDate !== "") {
         query = query.gte('event_date', new Date(startDate).toISOString());
       }
@@ -59,7 +58,6 @@ const ClientEvents = () => {
   const clearFilters = () => {
     setStartDate("");
     setEndDate("");
-    // Chamada direta para resetar
     setTimeout(() => fetchEvents(), 10);
   };
 
@@ -133,6 +131,7 @@ const ClientEvents = () => {
                     "uppercase text-[10px] font-black px-4 py-1.5 rounded-full border-none shadow-sm",
                     event.status === 'PAID' ? 'bg-emerald-50 text-emerald-600' : 
                     event.status === 'ACCEPTED' ? 'bg-blue-500 text-white' :
+                    event.status === 'SIGNED' ? 'bg-indigo-600 text-white' :
                     event.status === 'PENDING' ? 'bg-amber-500 text-white' : 
                     event.status === 'CANCELLED' ? 'bg-slate-200 text-slate-500' : 'bg-slate-100 text-slate-500'
                   )}>
@@ -154,7 +153,8 @@ const ClientEvents = () => {
                   </Button>
                 )}
                 
-                {event.status === 'ACCEPTED' && (
+                {/* Habilitado pagamento para ACCEPTED ou SIGNED */}
+                {(event.status === 'ACCEPTED' || event.status === 'SIGNED') && (
                   <Button asChild className="bg-indigo-600 hover:bg-indigo-700 rounded-xl gap-2 flex-1 md:flex-none font-black shadow-lg shadow-indigo-100">
                     <Link to={`/client/checkout`} state={{ artist: event.pro, contractId: event.id }}><CreditCard className="w-4 h-4" /> Pagar Agora</Link>
                   </Button>

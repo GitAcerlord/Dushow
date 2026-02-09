@@ -21,8 +21,9 @@ const ClientMessages = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Filtro: Somente eventos PENDING, ACCEPTED ou SIGNED
-    const { data: contracts } = await supabase
+    // Filtro: Mostra negociações em andamento, aceitas, assinadas ou recém-pagas.
+    // Removemos apenas o que foi concluído (COMPLETED), rejeitado (REJECTED) ou cancelado.
+    const { data: contracts, error } = await supabase
       .from('contracts')
       .select(`
         id,
@@ -31,11 +32,15 @@ const ClientMessages = () => {
         pro:profiles!contracts_pro_id_fkey(id, full_name, avatar_url)
       `)
       .eq('client_id', user.id)
-      .in('status', ['PENDING', 'ACCEPTED', 'SIGNED', 'PAID'])
-      .order('created_at', { ascending: false });
+      .in('status', ['PENDING', 'ACCEPTED', 'SIGNED', 'PAID', 'CREATED'])
+      .order('updated_at', { ascending: false });
 
-    setConversations(contracts || []);
-    if (contracts && contracts.length > 0) setSelectedConv(contracts[0]);
+    if (error) {
+      console.error("Erro ao carregar conversas:", error);
+    } else {
+      setConversations(contracts || []);
+      if (contracts && contracts.length > 0) setSelectedConv(contracts[0]);
+    }
     setLoading(false);
   };
 
@@ -46,9 +51,9 @@ const ClientMessages = () => {
       <Card className="border-none shadow-sm bg-white overflow-hidden flex flex-col rounded-[2rem]">
         <div className="p-6 border-b bg-slate-50">
           <h3 className="font-black text-slate-900">Conversas Ativas</h3>
-          <p className="text-[10px] text-slate-400 uppercase font-bold mt-1">Apenas negociações em curso</p>
+          <p className="text-[10px] text-slate-400 uppercase font-bold mt-1">Negociações e Contratos Ativos</p>
         </div>
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
           {conversations.length === 0 ? (
             <div className="p-10 text-center text-slate-400">
               <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-20" />
@@ -71,9 +76,9 @@ const ClientMessages = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start">
                     <h4 className="text-sm font-bold text-slate-900 truncate">{conv.pro?.full_name}</h4>
-                    <Badge variant="outline" className="text-[8px] px-1.5 py-0 h-4">{conv.status}</Badge>
+                    <Badge variant="outline" className="text-[8px] px-1.5 py-0 h-4 uppercase">{conv.status}</Badge>
                   </div>
-                  <p className="text-[10px] text-slate-400 flex items-center gap-1">
+                  <p className="text-[10px] text-slate-400 flex items-center gap-1 truncate">
                     <Calendar className="w-3 h-3" /> {conv.event_name}
                   </p>
                 </div>
