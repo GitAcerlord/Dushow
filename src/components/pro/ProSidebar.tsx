@@ -4,7 +4,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, UserCircle, MessageSquare, Calendar,
-  Trophy, CreditCard, Sparkles, LogOut, Mic2, Star, FileText, Menu, Rss
+  Trophy, CreditCard, Sparkles, LogOut, Mic2, Star, FileText, Menu, Rss, ShieldCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -20,6 +20,7 @@ const menuItems = [
   { icon: Star, label: 'Avaliações', path: '/pro/reviews' },
   { icon: FileText, label: 'Meus Contratos', path: '/pro/contracts' },
   { icon: Calendar, label: 'Minha Agenda', path: '/pro/agenda' },
+  { icon: ShieldCheck, label: 'Meus Selos', path: '/pro/badges' },
   { icon: Trophy, label: 'Conquistas', path: '/pro/achievements' },
   { icon: Sparkles, label: 'Planos & Upgrade', path: '/pro/plans' },
   { icon: CreditCard, label: 'Financeiro', path: '/pro/finance' },

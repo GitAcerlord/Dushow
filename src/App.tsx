@@ -37,6 +37,7 @@ import ProAchievements from "./pages/pro/Achievements";
 import ProReviews from "./pages/pro/Reviews";
 import ProContracts from "./pages/pro/Contracts";
 import ContractDetails from "./pages/pro/ContractDetails";
+import Badges from "./pages/pro/Badges";
 
 // Client
 import ClientLayout from "./pages/client/ClientLayout";
@@ -95,6 +96,7 @@ const App = () => (
             <Route path="contracts" element={<ProContracts />} />
             <Route path="contracts/:id" element={<ContractDetails />} />
             <Route path="agenda" element={<ProAgenda />} />
+            <Route path="badges" element={<Badges />} />
             <Route path="achievements" element={<ProAchievements />} />
             <Route path="plans" element={<ProPlans />} />
             <Route path="plans/checkout" element={<PlanCheckout />} />
