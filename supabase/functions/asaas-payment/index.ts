@@ -1,9 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
-const ASAAS_API_KEY = Deno.env.get('ASAAS_API_KEY')
-const ASAAS_URL = 'https://www.asaas.com/api/v3'
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -32,47 +29,73 @@ serve(async (req) => {
 
     const { contractId, paymentMethodId } = await req.json()
 
-    const { data: contract } = await supabaseClient
+    // 1. Buscar Contrato e Dados do Artista
+    const { data: contract, error: contractError } = await supabaseClient
       .from('contracts')
       .select('*, pro:profiles!contracts_pro_id_fkey(*)')
       .eq('id', contractId)
       .single()
 
-    if (!contract) throw new Error("Contrato não encontrado.")
+    if (contractError || !contract) throw new Error("Contrato não encontrado.")
+    if (contract.status === 'PAID') throw new Error("Este contrato já foi pago.")
 
-    // 1. Calcular o que o artista vai receber (Líquido)
+    // 2. Calcular Split (Taxa DUSHOW vs Líquido Artista)
     const totalValue = Number(contract.value);
     const feePercentage = PLAN_FEES[contract.pro?.plan_tier || 'free'] || 0.15;
-    const artistNet = totalValue * (1 - feePercentage);
+    const platformFee = totalValue * feePercentage;
+    const artistNet = totalValue - platformFee;
 
-    // 2. Buscar Cartão
+    // 3. Buscar Token do Cartão
     const { data: card } = await supabaseClient.from('payment_methods').select('*').eq('id', paymentMethodId).single()
-    if (!card) throw new Error("Cartão não encontrado.")
+    if (!card) throw new Error("Método de pagamento inválido.")
 
-    // 3. Criar Cobrança no Asaas (100% para DUSHOW - Sem Split agora)
-    const paymentBody = {
-      customer: 'CUSTOMER_ID_LOGIC', // Simplificado para o exemplo
-      billingType: 'CREDIT_CARD',
-      value: totalValue,
-      dueDate: new Date().toISOString().split('T')[0],
-      description: `Contratação: ${contract.event_name}`,
-      creditCardToken: card.gateway_token
-    }
+    // --- AQUI ENTRARIA A CHAMADA REAL PARA O ASAAS ---
+    // console.log(`[Asaas] Cobrando R$ ${totalValue} no cartão final ${card.last4}`);
+    // ------------------------------------------------
 
-    // Simulação de chamada Asaas (em prod use o fetch real)
-    // const response = await fetch(`${ASAAS_URL}/payments`, ...)
+    // 4. REGISTRO DE MOVIMENTAÇÃO (LEDGER) - CRÍTICO PARA VISIBILIDADE
+    await supabaseClient.from('financial_ledger').insert([
+      {
+        contract_id: contractId,
+        user_id: contract.client_id,
+        amount: -totalValue,
+        type: 'DEBIT',
+        description: `Pagamento do evento: ${contract.event_name}`
+      },
+      {
+        contract_id: contractId,
+        user_id: contract.pro_id,
+        amount: artistNet,
+        type: 'CREDIT',
+        description: `Cachê recebido (Líquido): ${contract.event_name}`
+      }
+    ]);
 
-    // 4. Atualizar Banco de Dados: Dinheiro entra no PENDENTE do artista
-    await supabaseClient.rpc('increment_pending_balance', { 
+    // 5. Atualizar Saldo Pendente do Artista (Escrow)
+    const { error: rpcError } = await supabaseClient.rpc('increment_pending_balance', { 
       user_id: contract.pro_id, 
       amount: artistNet 
     });
+    if (rpcError) throw rpcError;
 
-    await supabaseClient.from('contracts').update({ status: 'PAID' }).eq('id', contractId)
+    // 6. Marcar Contrato como PAGO
+    const { error: updateError } = await supabaseClient
+      .from('contracts')
+      .update({ status: 'PAID' })
+      .eq('id', contractId);
+    
+    if (updateError) throw updateError;
 
-    return new Response(JSON.stringify({ success: true }), { headers: corsHeaders })
+    return new Response(JSON.stringify({ success: true, artistNet, platformFee }), { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200 
+    })
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: corsHeaders })
+    console.error("[asaas-payment] Error:", error.message);
+    return new Response(JSON.stringify({ error: error.message }), { 
+      status: 400, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    })
   }
 })
