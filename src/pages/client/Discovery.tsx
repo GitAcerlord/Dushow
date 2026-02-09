@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Search, Star, MapPin, Heart, Loader2, Crown, Calendar, DollarSign
+  Search, Star, MapPin, Heart, Loader2, Crown, Calendar, DollarSign, Music, User, ArrowRight
 } from "lucide-react";
 import { 
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter 
@@ -15,6 +15,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
+import { getSafeImageUrl } from '@/utils/url-validator';
 
 const Discovery = () => {
   const navigate = useNavigate();
@@ -36,7 +37,13 @@ const Discovery = () => {
 
   const fetchArtists = async () => {
     setLoading(true);
-    const { data } = await supabase.from('profiles').select('*').eq('role', 'PRO').order('is_superstar', { ascending: false });
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('role', 'PRO')
+      .eq('is_active', true)
+      .order('is_superstar', { ascending: false });
+    
     setArtists(data || []);
     setLoading(false);
   };
@@ -49,7 +56,6 @@ const Discovery = () => {
 
     setIsSubmitting(true);
     try {
-      // SECURITY FIX: Use Edge Function to create contract with server-side price validation
       const { data, error } = await supabase.functions.invoke('create-contract', {
         body: {
           proId: selectedArtist.id,
@@ -71,67 +77,147 @@ const Discovery = () => {
     }
   };
 
+  const filteredArtists = artists.filter(a => 
+    a.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    a.category?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="p-8 space-y-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-black text-slate-900">Descobrir Talentos</h1>
-        <Input 
-          className="max-w-xs bg-white rounded-xl" 
-          placeholder="Buscar artista..." 
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-black text-slate-900">Descobrir Talentos</h1>
+          <p className="text-slate-500">Encontre os melhores profissionais para o seu palco.</p>
+        </div>
+        <div className="relative w-full md:max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+          <Input 
+            className="pl-10 bg-white rounded-xl border-slate-200" 
+            placeholder="Nome, estilo ou categoria..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {artists.map((artist) => (
-          <Card key={artist.id} className="group overflow-hidden border-none shadow-md bg-white rounded-3xl">
-            <div className="h-48 bg-slate-100 relative">
-              <img src={artist.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${artist.full_name}`} className="w-full h-full object-cover" />
-              {artist.is_superstar && <Badge className="absolute top-3 right-3 bg-amber-500"><Crown className="w-3 h-3 mr-1" /> Superstar</Badge>}
-            </div>
-            <div className="p-5 space-y-4">
-              <h3 className="font-bold text-slate-900">{artist.full_name}</h3>
-              <div className="flex justify-between items-end">
-                <div>
-                  <p className="text-[10px] text-slate-400 uppercase font-black">Cachê</p>
-                  <p className="text-lg font-black text-indigo-600">R$ {Number(artist.price).toLocaleString('pt-BR')}</p>
+      {loading ? (
+        <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-600 w-10 h-10" /></div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredArtists.map((artist) => (
+            <Card key={artist.id} className="group overflow-hidden border-none shadow-sm bg-white rounded-[2rem] hover:shadow-xl transition-all duration-300">
+              <div className="h-56 bg-slate-100 relative overflow-hidden">
+                <img 
+                  src={getSafeImageUrl(artist.avatar_url, `https://api.dicebear.com/7.x/avataaars/svg?seed=${artist.full_name}`)} 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                  alt={artist.full_name}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                
+                <div className="absolute top-3 left-3 flex flex-col gap-2">
+                  {artist.is_superstar && <Badge className="bg-amber-500 border-none shadow-lg"><Crown className="w-3 h-3 mr-1" /> Superstar</Badge>}
+                  {artist.is_verified && <Badge className="bg-blue-500 border-none shadow-lg"><Star className="w-3 h-3 mr-1 fill-current" /> Verificado</Badge>}
                 </div>
                 
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button onClick={() => setSelectedArtist(artist)} className="bg-slate-900 rounded-xl">Contratar</Button>
-                  </DialogTrigger>
-                  <DialogContent className="rounded-3xl">
-                    <DialogHeader>
-                      <DialogTitle>Enviar Proposta para {artist.full_name}</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <div className="space-y-2">
-                        <Label>Nome do Evento</Label>
-                        <Input value={proposalData.eventName} onChange={(e) => setProposalData({...proposalData, eventName: e.target.value})} placeholder="Ex: Casamento de Ana & Leo" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Data do Evento</Label>
-                        <Input type="datetime-local" value={proposalData.eventDate} onChange={(e) => setProposalData({...proposalData, eventDate: e.target.value})} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Localização</Label>
-                        <Input value={proposalData.location} onChange={(e) => setProposalData({...proposalData, location: e.target.value})} placeholder="Cidade, Estado" />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button onClick={handleSendProposal} disabled={isSubmitting} className="w-full bg-indigo-600 h-12 rounded-xl font-bold">
-                        {isSubmitting ? <Loader2 className="animate-spin" /> : "Enviar Proposta Real"}
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+                <Button 
+                  variant="secondary" 
+                  size="icon" 
+                  className="absolute top-3 right-3 rounded-full bg-white/20 backdrop-blur-md border-none text-white hover:bg-white hover:text-red-500"
+                >
+                  <Heart className="w-4 h-4" />
+                </Button>
               </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <h3 className="font-black text-xl text-slate-900 truncate">{artist.full_name}</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="outline" className="text-[10px] font-bold uppercase border-blue-100 text-blue-600 bg-blue-50">
+                      <Music className="w-3 h-3 mr-1" /> {artist.category || "Artista"}
+                    </Badge>
+                    <div className="flex items-center gap-1 text-amber-500 text-xs font-bold">
+                      <Star className="w-3 h-3 fill-current" /> {artist.rating || "5.0"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-slate-500 text-sm font-medium">
+                  <MapPin className="w-4 h-4 text-slate-400" />
+                  {artist.location || "Local não informado"}
+                </div>
+
+                <div className="pt-2 flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1 rounded-xl border-slate-200 font-bold text-xs"
+                    onClick={() => navigate(`/client/artist/${artist.id}`)}
+                  >
+                    Ver Perfil
+                  </Button>
+                  
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button onClick={() => setSelectedArtist(artist)} className="flex-1 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold text-xs gap-2">
+                        Contratar <ArrowRight className="w-3 h-3" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="rounded-[2.5rem] max-w-md">
+                      <DialogHeader>
+                        <DialogTitle className="text-2xl font-black">Solicitar Proposta</DialogTitle>
+                        <p className="text-slate-500 text-sm">Você está iniciando uma negociação com <strong>{artist.full_name}</strong>.</p>
+                      </DialogHeader>
+                      <div className="space-y-4 py-6">
+                        <div className="space-y-2">
+                          <Label className="text-xs font-bold uppercase text-slate-400">Nome do Evento</Label>
+                          <Input 
+                            value={proposalData.eventName} 
+                            onChange={(e) => setProposalData({...proposalData, eventName: e.target.value})} 
+                            placeholder="Ex: Casamento de Ana & Leo" 
+                            className="bg-slate-50 border-none h-12 rounded-xl"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-xs font-bold uppercase text-slate-400">Data e Hora</Label>
+                            <Input 
+                              type="datetime-local" 
+                              value={proposalData.eventDate} 
+                              onChange={(e) => setProposalData({...proposalData, eventDate: e.target.value})} 
+                              className="bg-slate-50 border-none h-12 rounded-xl"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-bold uppercase text-slate-400">Localização</Label>
+                            <Input 
+                              value={proposalData.location} 
+                              onChange={(e) => setProposalData({...proposalData, location: e.target.value})} 
+                              placeholder="Cidade, Estado" 
+                              className="bg-slate-50 border-none h-12 rounded-xl"
+                            />
+                          </div>
+                        </div>
+                        <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                          <p className="text-[10px] font-black text-blue-400 uppercase mb-1">Cachê Base do Artista</p>
+                          <p className="text-2xl font-black text-blue-600">R$ {Number(artist.price).toLocaleString('pt-BR')}</p>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button 
+                          onClick={handleSendProposal} 
+                          disabled={isSubmitting} 
+                          className="w-full bg-blue-600 h-14 rounded-2xl font-black text-lg shadow-xl shadow-blue-100"
+                        >
+                          {isSubmitting ? <Loader2 className="animate-spin" /> : "Enviar Proposta Real"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
