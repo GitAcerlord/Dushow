@@ -13,6 +13,7 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import About from "./pages/About";
 import Services from "./pages/Services";
+import ArtistProfile from "./pages/client/ArtistProfile"; // Agora público
 
 // Unified App Pages
 import Dashboard from "./pages/Dashboard";
@@ -26,8 +27,9 @@ import Discovery from "./pages/client/Discovery";
 import ClientEvents from "./pages/client/Events";
 import Favorites from "./pages/client/Favorites";
 import Profile from "./pages/client/Profile";
-import ArtistProfile from "./pages/client/ArtistProfile";
 import ContractDetails from "./pages/pro/ContractDetails";
+import ClientPlans from "./pages/client/Plans";
+import ProducerDashboard from "./pages/producer/ProducerDashboard";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -53,6 +55,7 @@ const App = () => (
           <Route path="/register" element={<Register />} />
           <Route path="/about" element={<About />} />
           <Route path="/services" element={<Services />} />
+          <Route path="/artist/:id" element={<ArtistProfile />} />
           
           {/* Unified App Route (PRO & CLIENT) */}
           <Route path="/app" element={
@@ -72,6 +75,8 @@ const App = () => (
             <Route path="artist/:id" element={<ArtistProfile />} />
             <Route path="events" element={<ClientEvents />} />
             <Route path="favorites" element={<Favorites />} />
+            <Route path="plans" element={<ClientPlans />} />
+            <Route path="producer" element={<ProducerDashboard />} />
           </Route>
 
           {/* Admin Routes */}
