@@ -24,15 +24,12 @@ serve(async (req) => {
     const { receiverId, content, contractId } = await req.json()
     const senderId = user.id
 
+    // 1. Verificar se o contrato permite troca de contatos (ex: após aceite)
     const { data: contract } = await supabaseClient
       .from('contracts')
-      .select('status, client_id, pro_id')
+      .select('status')
       .eq('id', contractId)
       .single()
-
-    if (!contract || (contract.client_id !== senderId && contract.pro_id !== senderId)) {
-      throw new Error("Acesso negado ao chat deste contrato.")
-    }
 
     const isAccepted = contract?.status === 'ACCEPTED' || contract?.status === 'PAID' || contract?.status === 'COMPLETED';
     
@@ -40,27 +37,15 @@ serve(async (req) => {
     let isBlocked = false;
     let reason = "";
 
+    // 2. Filtro Anti-Bypass (Apenas se não estiver aceito)
     if (!isAccepted) {
-      const normalized = content.toLowerCase()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9]/g, "");
-
-      const patterns = {
-        phone: /(\d{2,4}[-.\s]?\d{4,5}[-.\s]?\d{4})|(\d{10,11})/,
-        email: /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i,
-        links: /(https?:\/\/|www\.)[^\s]+/,
-        disguised: /(zap|wpp|whats|contato|meu numero|me chama|insta|@|arroba|ponto com|com br|nove nove|oito oito)/i
-      };
-
-      const hasPhone = patterns.phone.test(content) || /(\d{1}.*?){10,}/.test(content);
-      const hasEmail = patterns.email.test(content);
-      const hasLinks = patterns.links.test(content);
-      const hasDisguised = patterns.disguised.test(content) || /([0-9].*?){8,}/.test(normalized);
-
-      if (hasPhone || hasEmail || hasLinks || hasDisguised) {
+      // Bloqueia qualquer sequência de números (0-9)
+      const hasNumbers = /[0-9]/.test(content);
+      
+      if (hasNumbers) {
         isBlocked = true;
-        reason = "Tentativa de bypass detectada (contato externo).";
-        finalContent = "🚫 Por segurança, dados de contato só podem ser enviados após a proposta ser aceita.";
+        reason = "Compartilhamento de números não permitido antes do aceite do contrato.";
+        finalContent = content.replace(/[0-9]/g, ' [BLOQUEADO] ');
       }
     }
 
