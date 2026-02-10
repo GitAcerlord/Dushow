@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import ProDashboard from './pro/Dashboard';
 import ClientDashboard from './client/Dashboard';
+import ProducerDashboard from './producer/ProducerDashboard';
 import { Loader2 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -22,9 +23,22 @@ const Dashboard = () => {
     fetchProfile();
   }, []);
 
-  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-indigo-600" /></div>;
+  if (loading) return (
+    <div className="h-[calc(100vh-64px)] flex items-center justify-center">
+      <Loader2 className="animate-spin w-10 h-10 text-indigo-600" />
+    </div>
+  );
 
-  return profile?.active_context === 'PRO' ? <ProDashboard /> : <ClientDashboard />;
+  // Roteamento de Dashboard por Contexto
+  switch (profile?.active_context) {
+    case 'PRODUCER':
+      return <ProducerDashboard />;
+    case 'CLIENT':
+      return <ClientDashboard />;
+    case 'PRO':
+    default:
+      return <ProDashboard />;
+  }
 };
 
 export default Dashboard;
