@@ -29,7 +29,7 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
   const fetchComments = async () => {
     setLoading(true);
     try {
-      // Ajustada a sintaxe do select para usar o relacionamento padrão 'profiles'
+      // Usando a sintaxe de alias para garantir que o PostgREST encontre a relação
       const { data, error } = await supabase
         .from('post_comments')
         .select(`
@@ -37,7 +37,7 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
           content,
           user_id,
           created_at,
-          profiles (
+          profiles:user_id (
             full_name,
             avatar_url
           )
@@ -48,11 +48,22 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
       if (error) throw error;
       setComments(data || []);
     } catch (e: any) {
-      console.error("Erro ao carregar comentários:", e);
-      showError("Não foi possível carregar os comentários.");
+      console.error("[CommentSection] Fetch error:", e);
+      // Se a junção falhar, tentamos buscar sem o perfil como fallback temporário
+      fetchCommentsFallback();
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchCommentsFallback = async () => {
+    const { data, error } = await supabase
+      .from('post_comments')
+      .select('*')
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true });
+    
+    if (!error) setComments(data || []);
   };
 
   const handleSend = async () => {
@@ -71,7 +82,7 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
           content,
           user_id,
           created_at,
-          profiles (
+          profiles:user_id (
             full_name,
             avatar_url
           )
@@ -79,11 +90,13 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
         .single();
 
       if (error) throw error;
+      
       setComments(prev => [...prev, data]);
       setNewComment("");
       showSuccess("Comentário enviado!");
-    } catch (e) {
-      showError("Erro ao enviar comentário.");
+    } catch (e: any) {
+      console.error("[CommentSection] Post error:", e);
+      showError("Erro ao enviar comentário. Tente novamente.");
     } finally {
       setSubmitting(false);
     }
@@ -129,11 +142,11 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
             <div key={comment.id} className="flex gap-3 group">
               <Avatar className="w-8 h-8 shrink-0">
                 <AvatarImage src={getSafeImageUrl(comment.profiles?.avatar_url, '')} />
-                <AvatarFallback>{comment.profiles?.full_name?.[0]}</AvatarFallback>
+                <AvatarFallback>{comment.profiles?.full_name?.[0] || '?'}</AvatarFallback>
               </Avatar>
               <div className="flex-1 space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-slate-900">{comment.profiles?.full_name}</span>
+                  <span className="text-xs font-black text-slate-900">{comment.profiles?.full_name || 'Usuário'}</span>
                   {comment.user_id === currentUserId && (
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
