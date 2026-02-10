@@ -20,7 +20,9 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
     if (authError || !user) throw new Error("Não autorizado")
 
-    const { contractId, action, newValue, profileId } = await req.json()
+    // SECURITY: Use user.id from JWT, ignore profileId from body
+    const profileId = user.id;
+    const { contractId, action, newValue } = await req.json()
     
     const { data: contract } = await supabaseClient
       .from('contracts')

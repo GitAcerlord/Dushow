@@ -77,7 +77,8 @@ const Feed = () => {
         imageUrl = publicUrl;
       }
 
-      // 1. Criar Post
+      // SECURITY: We only create the post. 
+      // A database trigger (tr_post_xp) now handles the XP award server-side.
       const { error: postError } = await supabase.from('posts').insert({
         author_id: userProfile.id,
         content: postContent,
@@ -85,14 +86,7 @@ const Feed = () => {
       });
       if (postError) throw postError;
 
-      // 2. Registrar XP Real
-      await supabase.from('xp_transactions').insert({
-        profile_id: userProfile.id,
-        action: 'POST_CREATED',
-        points: 5
-      });
-
-      showSuccess("Publicado com sucesso! +5 XP acumulados.");
+      showSuccess("Publicado com sucesso! XP acumulado.");
       setPostContent(""); setSelectedImage(null); setImagePreview(null);
       fetchData(0);
     } catch (error: any) {

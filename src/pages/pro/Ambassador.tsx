@@ -55,20 +55,15 @@ const Ambassador = () => {
     e.preventDefault();
     setSubmitting(true);
     try {
+      // SECURITY: We only insert the indication. 
+      // A database trigger (tr_indication_xp) now handles the XP award server-side.
       const { error } = await supabase.from('company_indications').insert({
         profile_id: profile.id,
         ...formData
       });
       if (error) throw error;
 
-      // XP Automático por indicação (Simulado como validado para este MVP, em prod seria via admin)
-      await supabase.from('xp_transactions').insert({
-        profile_id: profile.id,
-        action: 'COMPANY_INDICATION',
-        points: 20
-      });
-
-      showSuccess("Indicação enviada! +20 XP adicionados à sua conta.");
+      showSuccess("Indicação enviada! XP adicionado à sua conta.");
       setFormData({ company_name: "", instagram_handle: "", contact_name: "", contact_info: "" });
     } catch (error: any) {
       showError(error.message);

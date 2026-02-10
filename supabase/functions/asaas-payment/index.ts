@@ -17,15 +17,20 @@ serve(async (req) => {
 
     const authHeader = req.headers.get('Authorization')!
     const token = authHeader.replace('Bearer ', '')
-    const { data: { user } } = await supabaseClient.auth.getUser(token)
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
+    if (authError || !user) throw new Error("Não autorizado")
 
-    const { contractId, paymentMethodId, profileId } = await req.json()
+    // SECURITY: Use user.id from JWT
+    const profileId = user.id;
+    const { contractId, paymentMethodId } = await req.json()
 
     const { data: contract } = await supabaseClient
       .from('contracts')
       .select('*')
       .eq('id', contractId)
       .single()
+
+    if (!contract) throw new Error("Contrato não localizado.");
 
     // VALIDAÇÕES CRÍTICAS
     if (contract.status !== 'ASSINADO') throw new Error("Pagamento proibido: Contrato não está assinado.");
@@ -35,7 +40,7 @@ serve(async (req) => {
     if (contract.contratante_profile_id !== profileId) throw new Error("Apenas o contratante pode pagar.");
 
     // --- LÓGICA DE COBRANÇA ASAAS AQUI ---
-    // ... (Sucesso na cobrança)
+    // ... (Sucesso na cobrança simulado)
 
     // Atualizar para PAGO e registrar no Ledger
     await supabaseClient.from('contracts').update({ status: 'PAGO' }).eq('id', contractId);

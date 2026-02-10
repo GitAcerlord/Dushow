@@ -38,25 +38,24 @@ const ProFinance = () => {
 
     setIsSubmitting(true);
     try {
+      // SECURITY: We only insert the withdrawal request. 
+      // A database trigger (handle_withdrawal_deduction) now handles the balance deduction server-side.
       const { error } = await supabase.from('withdrawals').insert({
         user_id: profile.id,
         amount: amount,
         pix_key: pixKey,
-        pix_key_type: 'RANDOM', // Simplificado
+        pix_key_type: 'RANDOM',
         status: 'PENDING'
       });
 
       if (error) throw error;
 
-      // Deduzir do saldo disponível imediatamente (UI)
-      await supabase.from('profiles').update({ 
-        balance_available: profile.balance_available - amount 
-      }).eq('id', profile.id);
-
       showSuccess("Solicitação de saque enviada! Prazo: 24h úteis.");
+      setWithdrawAmount("");
+      setPixKey("");
       fetchData();
-    } catch (e) {
-      showError("Erro ao solicitar saque.");
+    } catch (e: any) {
+      showError(e.message || "Erro ao solicitar saque.");
     } finally {
       setIsSubmitting(false);
     }
