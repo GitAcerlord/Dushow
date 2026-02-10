@@ -29,7 +29,6 @@ const ClientDashboard = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Busca TODOS os contratos do cliente para calcular métricas reais
     const { data: contracts, error } = await supabase
       .from('contracts')
       .select('*, pro:profiles!contracts_pro_id_fkey(full_name, avatar_url)')
@@ -39,7 +38,6 @@ const ClientDashboard = () => {
     if (error) {
       console.error("Erro ao buscar dados do painel:", error);
     } else if (contracts) {
-      // CÁLCULOS FINANCEIROS REAIS
       const totalSpent = contracts
         .filter(c => c.status === 'PAID' || c.status === 'COMPLETED')
         .reduce((acc, curr) => acc + Number(curr.value), 0);
@@ -48,8 +46,6 @@ const ClientDashboard = () => {
       const pendingProposals = contracts.filter(c => c.status === 'PENDING').length;
 
       setStats({ totalSpent, activeEvents, pendingProposals });
-
-      // FILTRO: Apenas contratos assinados ou pendentes para a lista principal
       const filtered = contracts.filter(c => ['PENDING', 'SIGNED', 'ACCEPTED', 'PAID'].includes(c.status));
       setRelevantEvents(filtered.slice(0, 10));
     }
@@ -63,14 +59,13 @@ const ClientDashboard = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-black text-slate-900">Meu Painel</h1>
-          <p className="text-slate-500">Dados reais das suas contratações e propostas.</p>
+          <p className="text-slate-500">Acompanhe seus eventos e contratações em tempo real.</p>
         </div>
         <Button asChild className="bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-100">
-          <Link to="/client/discovery"><Search className="w-4 h-4 mr-2" /> Buscar Novos Artistas</Link>
+          <Link to="/app/discovery"><Search className="w-4 h-4 mr-2" /> Buscar Novos Artistas</Link>
         </Button>
       </div>
 
-      {/* Métricas Reais */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="p-6 border-none shadow-sm bg-white">
           <div className="flex items-center gap-4">
@@ -85,7 +80,7 @@ const ClientDashboard = () => {
           <div className="flex items-center gap-4">
             <div className="p-3 bg-emerald-50 rounded-xl"><CheckCircle2 className="w-6 h-6 text-emerald-600" /></div>
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Eventos Ativos</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Eventos Confirmados</p>
               <h3 className="text-2xl font-black text-slate-900">{stats.activeEvents}</h3>
             </div>
           </div>
@@ -106,7 +101,7 @@ const ClientDashboard = () => {
         <div className="grid gap-4">
           {relevantEvents.length === 0 ? (
             <Card className="p-12 text-center text-slate-400 border-dashed border-2">
-              Nenhuma proposta ou contrato ativo no momento.
+              Nenhuma proposta ou evento ativo no momento.
             </Card>
           ) : (
             relevantEvents.map((event) => (
@@ -137,7 +132,7 @@ const ClientDashboard = () => {
                     {event.status}
                   </Badge>
                   <Button variant="ghost" size="icon" asChild className="rounded-full hover:bg-blue-50 hover:text-blue-600">
-                    <Link to={`/client/contracts/${event.id}`}><ArrowRight className="w-4 h-4" /></Link>
+                    <Link to={`/app/contracts/${event.id}`}><ArrowRight className="w-4 h-4" /></Link>
                   </Button>
                 </div>
               </Card>
