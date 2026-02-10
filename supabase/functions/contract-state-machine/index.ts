@@ -15,63 +15,63 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { contractId, action, userId } = await req.json()
+    const authHeader = req.headers.get('Authorization')!
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
+    if (authError || !user) throw new Error("Não autorizado")
+
+    const { contractId, action, newValue, profileId } = await req.json()
     
-    const { data: contract, error: fetchError } = await supabaseClient
+    const { data: contract } = await supabaseClient
       .from('contracts')
-      .select('*, pro:profiles!contracts_pro_id_fkey(*)')
+      .select('*')
       .eq('id', contractId)
       .single()
 
-    if (fetchError || !contract) throw new Error("Contrato não localizado.");
+    if (!contract) throw new Error("Contrato não encontrado.")
 
-    if (action === 'COMPLETE_EVENT') {
-      if (contract.client_id !== userId) throw new Error("Apenas o contratante pode liberar o pagamento.");
-      if (contract.status !== 'PAID') throw new Error("O contrato ainda não foi pago ou já foi concluído.");
+    const isContratante = contract.contratante_profile_id === profileId;
+    const isProfissional = contract.profissional_profile_id === profileId;
+    const oldStatus = contract.status;
 
-      const feePercentage = 0.15;
-      const artistNet = Number(contract.value) * (1 - feePercentage);
+    let newStatus = oldStatus;
 
-      const { error: rpcError } = await supabaseClient.rpc('release_artist_funds', {
-        artist_id: contract.pro_id,
-        amount: artistNet
-      });
-
-      if (rpcError) throw new Error("Erro interno ao processar saldo.");
-
-      const { error: updateError } = await supabaseClient
-        .from('contracts')
-        .update({ status: 'COMPLETED' })
-        .eq('id', contractId);
-
-      if (updateError) throw updateError;
-      
-      return new Response(JSON.stringify({ success: true, status: 'COMPLETED' }), { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
-      });
+    // REGRAS DE TRANSIÇÃO
+    if (action === 'ACCEPT' && isProfissional) newStatus = 'ACEITO';
+    if (action === 'REJECT' && isProfissional) newStatus = 'REJEITADO';
+    if (action === 'SIGN' && isContratante) newStatus = 'ASSINADO';
+    if (action === 'COUNTER_PROPOSAL' && isProfissional) {
+      newStatus = 'CONTRAPROPOSTA';
     }
 
-    if (action === 'ACCEPT' || action === 'REJECT') {
-      const newStatus = action === 'ACCEPT' ? 'ACCEPTED' : 'REJECTED';
-      const { error: updateError } = await supabaseClient
-        .from('contracts')
-        .update({ status: newStatus })
-        .eq('id', contractId);
-      
-      if (updateError) throw updateError;
-      return new Response(JSON.stringify({ success: true, status: newStatus }), { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
-      });
-    }
+    // 1. Atualizar Contrato
+    const { error: updateError } = await supabaseClient
+      .from('contracts')
+      .update({ 
+        status: newStatus, 
+        valor_atual: newValue || contract.valor_atual 
+      })
+      .eq('id', contractId);
 
-    return new Response(JSON.stringify({ error: "Ação inválida." }), { status: 400, headers: corsHeaders });
+    if (updateError) throw updateError;
+
+    // 2. Registrar Histórico (Auditoria)
+    await supabaseClient.from('contract_history').insert({
+      contract_id: contractId,
+      action: action,
+      performed_by_profile_id: profileId,
+      old_status: oldStatus,
+      new_status: newStatus,
+      old_value: contract.valor_atual,
+      new_value: newValue || contract.valor_atual
+    });
+
+    return new Response(JSON.stringify({ success: true, status: newStatus }), { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200 
+    });
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), { 
-      status: 400, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    });
+    return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: corsHeaders });
   }
 })
