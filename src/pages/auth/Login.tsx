@@ -49,13 +49,12 @@ const Login = () => {
 
       showSuccess("Bem-vindo de volta!");
       
-      // Redirecionamento baseado no papel
+      // Redirecionamento baseado no papel e na nova estrutura de rotas
       if (profile.role === 'ADMIN') {
         navigate('/admin');
-      } else if (profile.role === 'CLIENT') {
-        navigate('/client');
       } else {
-        navigate('/pro');
+        // PRO e CLIENT agora usam a rota unificada /app
+        navigate('/app');
       }
     } catch (error: any) {
       showError(error.message || "Erro ao entrar. Verifique suas credenciais.");

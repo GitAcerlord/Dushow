@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Mic2, User, Music, Briefcase, ArrowRight, Loader2, Mail, Lock } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 
 const registerSchema = z.object({
@@ -37,8 +37,6 @@ const Register = () => {
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
     try {
-      console.log("Iniciando cadastro para:", data.email);
-      
       const { error, data: authData } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -50,19 +48,12 @@ const Register = () => {
         }
       });
 
-      if (error) {
-        console.error("Erro Supabase Auth:", error);
-        throw error;
-      }
+      if (error) throw error;
 
       showSuccess("Conta criada! Verifique seu e-mail para confirmar o cadastro.");
       navigate('/login');
     } catch (error: any) {
-      console.error("Erro completo:", error);
-      const message = error.message === "Failed to fetch" 
-        ? "Erro de conexão: Verifique se as chaves do Supabase estão corretas e clique em Rebuild."
-        : error.message || "Erro ao criar conta.";
-      showError(message);
+      showError(error.message || "Erro ao criar conta.");
     } finally {
       setIsLoading(false);
     }
