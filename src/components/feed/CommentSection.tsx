@@ -29,6 +29,7 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
   const fetchComments = async () => {
     setLoading(true);
     try {
+      // Ajustada a sintaxe do select para usar o relacionamento padrão 'profiles'
       const { data, error } = await supabase
         .from('post_comments')
         .select(`
@@ -36,7 +37,7 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
           content,
           user_id,
           created_at,
-          profiles:user_id (
+          profiles (
             full_name,
             avatar_url
           )
@@ -46,8 +47,9 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
 
       if (error) throw error;
       setComments(data || []);
-    } catch (e) {
+    } catch (e: any) {
       console.error("Erro ao carregar comentários:", e);
+      showError("Não foi possível carregar os comentários.");
     } finally {
       setLoading(false);
     }
@@ -69,7 +71,7 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
           content,
           user_id,
           created_at,
-          profiles:user_id (
+          profiles (
             full_name,
             avatar_url
           )

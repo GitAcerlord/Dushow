@@ -83,9 +83,8 @@ const AppSidebar = ({ profile, onContextChange }: any) => {
       .eq('id', profile.id);
 
     if (!error) {
-      showSuccess(`Modo ${menuConfigs[newContext].label} ativado.`);
-      onContextChange(); // Recarrega o perfil no AppLayout
-      navigate('/app'); // Volta para o dashboard do novo contexto
+      // Reset completo da aplicação para limpar estados residuais
+      window.location.href = '/app';
     } else {
       showError("Erro ao trocar de contexto.");
     }
