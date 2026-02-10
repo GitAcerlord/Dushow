@@ -7,12 +7,11 @@ import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles?: ('PRO' | 'CLIENT' | 'ADMIN')[];
 }
 
-const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
+const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const [loading, setLoading] = useState(true);
-  const [authorized, setAuthorized] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -20,30 +19,24 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        setAuthorized(false);
+        setAuthenticated(false);
         setLoading(false);
         return;
       }
 
+      // Verifica se o perfil existe (Perfil Único)
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role')
+        .select('id')
         .eq('id', session.user.id)
         .single();
 
-      if (!profile) {
-        setAuthorized(false);
-      } else if (allowedRoles && !allowedRoles.includes(profile.role as any)) {
-        setAuthorized(false);
-      } else {
-        setAuthorized(true);
-      }
-      
+      setAuthenticated(!!profile);
       setLoading(false);
     };
 
     checkAuth();
-  }, [allowedRoles, location]);
+  }, [location]);
 
   if (loading) {
     return (
@@ -53,7 +46,7 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
     );
   }
 
-  if (!authorized) {
+  if (!authenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
