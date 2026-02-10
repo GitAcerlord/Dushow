@@ -1,0 +1,132 @@
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { 
+  Award, Share2, Building2, Instagram, User, CheckCircle2, Loader2, Zap, Copy
+} from "lucide-react";
+import { supabase } from '@/integrations/supabase/client';
+import { showSuccess, showError } from '@/utils/toast';
+
+const Ambassador = () => {
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState({ company_name: "", instagram_handle: "", contact_name: "" });
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      
+      // Gerar código se não existir
+      if (data && !data.referral_code) {
+        const code = data.full_name.toLowerCase().replace(/\s+/g, '') + Math.floor(10 + Math.random() * 90);
+        await supabase.from('profiles').update({ referral_code: code }).eq('id', user.id);
+        data.referral_code = code;
+      }
+      setProfile(data);
+    }
+    setLoading(false);
+  };
+
+  const handleIndicate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.from('company_indications').insert({
+        profile_id: profile.id,
+        ...formData
+      });
+      if (error) throw error;
+      showSuccess("Indicação enviada! Você receberá +20 XP após a validação.");
+      setFormData({ company_name: "", instagram_handle: "", contact_name: "" });
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(profile.referral_code);
+    showSuccess("Código copiado!");
+  };
+
+  if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin text-indigo-600" /></div>;
+
+  return (
+    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-8">
+      <div className="text-center space-y-4">
+        <div className="w-20 h-20 bg-amber-100 rounded-[2rem] flex items-center justify-center mx-auto text-amber-600 shadow-xl shadow-amber-100">
+          <Award className="w-10 h-10" />
+        </div>
+        <h1 className="text-4xl font-black text-slate-900 tracking-tight">Programa de Embaixadores</h1>
+        <p className="text-slate-500 max-w-lg mx-auto">Ajude a DUSHOW a crescer e seja recompensado com prestígio e XP exclusivo.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Referral Code */}
+        <Card className="p-8 border-none shadow-xl bg-white rounded-[2.5rem] space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><Share2 className="w-5 h-5" /></div>
+            <h3 className="font-black text-slate-900">Seu Código Único</h3>
+          </div>
+          <p className="text-sm text-slate-500">Compartilhe este código com outros profissionais. Quando eles se cadastram, você ganha XP.</p>
+          <div className="p-6 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-between">
+            <span className="text-2xl font-black text-indigo-600 tracking-widest uppercase">{profile.referral_code}</span>
+            <Button onClick={copyCode} variant="ghost" size="icon" className="text-slate-400 hover:text-indigo-600"><Copy className="w-5 h-5" /></Button>
+          </div>
+        </Card>
+
+        {/* XP Info */}
+        <Card className="p-8 border-none shadow-xl bg-indigo-600 text-white rounded-[2.5rem] space-y-6 relative overflow-hidden">
+          <div className="relative z-10 space-y-4">
+            <h3 className="text-xl font-black">Como ganhar XP?</h3>
+            <ul className="space-y-3">
+              <li className="flex items-center gap-2 text-sm font-medium"><CheckCircle2 className="w-4 h-4 text-indigo-200" /> Indicação de Empresa: <strong>+20 XP</strong></li>
+              <li className="flex items-center gap-2 text-sm font-medium"><CheckCircle2 className="w-4 h-4 text-indigo-200" /> Novo Profissional: <strong>+10 XP</strong></li>
+              <li className="flex items-center gap-2 text-sm font-medium"><CheckCircle2 className="w-4 h-4 text-indigo-200" /> Primeiro Show do Indicado: <strong>+50 XP</strong></li>
+            </ul>
+          </div>
+          <Zap className="absolute -right-10 -bottom-10 w-48 h-48 text-white/10 -rotate-12" />
+        </Card>
+      </div>
+
+      {/* Company Indication Form */}
+      <Card className="p-10 border-none shadow-2xl bg-white rounded-[3rem] space-y-8">
+        <div className="space-y-2">
+          <h3 className="text-2xl font-black text-slate-900">Indicar Empresa ou Casa de Shows</h3>
+          <p className="text-slate-500">Conhece um lugar que precisa de artistas? Indique e ganhe XP após nossa validação.</p>
+        </div>
+
+        <form onSubmit={handleIndicate} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label className="text-[10px] font-black uppercase text-slate-400 flex items-center gap-1"><Building2 className="w-3 h-3" /> Nome da Empresa</Label>
+            <Input required value={formData.company_name} onChange={(e) => setFormData({...formData, company_name: e.target.value})} className="bg-slate-50 border-none h-12 rounded-xl" placeholder="Ex: Blue Note SP" />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-[10px] font-black uppercase text-slate-400 flex items-center gap-1"><Instagram className="w-3 h-3" /> Instagram (@)</Label>
+            <Input value={formData.instagram_handle} onChange={(e) => setFormData({...formData, instagram_handle: e.target.value})} className="bg-slate-50 border-none h-12 rounded-xl" placeholder="@empresa" />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <Label className="text-[10px] font-black uppercase text-slate-400 flex items-center gap-1"><User className="w-3 h-3" /> Nome do Contato (Opcional)</Label>
+            <Input value={formData.contact_name} onChange={(e) => setFormData({...formData, contact_name: e.target.value})} className="bg-slate-50 border-none h-12 rounded-xl" placeholder="Quem devemos procurar?" />
+          </div>
+          <Button type="submit" disabled={submitting} className="md:col-span-2 h-14 bg-indigo-600 hover:bg-indigo-700 rounded-2xl font-black text-lg shadow-xl shadow-indigo-100">
+            {submitting ? <Loader2 className="animate-spin" /> : "Enviar Indicação Profissional"}
+          </Button>
+        </form>
+      </Card>
+    </div>
+  );
+};
+
+export default Ambassador;
