@@ -72,7 +72,6 @@ const Feed = () => {
         imageUrl = publicUrl;
       }
 
-      // 1. Insere o Post
       const { error: postError } = await supabase.from('posts').insert({
         author_id: userProfile.id,
         content: postContent,
@@ -80,14 +79,14 @@ const Feed = () => {
       });
       if (postError) throw postError;
 
-      // 2. Adiciona XP (5 pontos por post)
+      // Adiciona XP
       await supabase.from('xp_transactions').insert({
         profile_id: userProfile.id,
         action: 'POST',
         points: 5
       });
 
-      showSuccess("Publicado com sucesso! +5 XP ganhos.");
+      showSuccess("Publicado! +5 XP ganhos.");
       setPostContent(""); setSelectedImage(null); setImagePreview(null);
       fetchData(0);
     } catch (error: any) {
@@ -98,22 +97,20 @@ const Feed = () => {
   };
 
   const handleDeletePost = async (postId: string) => {
-    if (!confirm("Tem certeza que deseja excluir este post permanentemente?")) return;
+    if (!confirm("Excluir permanentemente? Isso removerá 5 XP da sua conta.")) return;
     
     try {
-      // Exclusão real no banco de dados
-      const { error } = await supabase
-        .from('posts')
-        .delete()
-        .eq('id', postId);
+      // Chama a Edge Function para garantir exclusão total e estorno de XP
+      const { error } = await supabase.functions.invoke('delete-post', {
+        body: { postId }
+      });
 
       if (error) throw error;
 
       setPosts(prev => prev.filter(p => p.id !== postId));
-      showSuccess("Post removido do banco de dados.");
+      showSuccess("Post removido e XP estornado.");
     } catch (error: any) {
-      console.error("Erro ao deletar:", error);
-      showError("Erro ao excluir post do servidor.");
+      showError("Erro ao excluir post.");
     }
   };
 

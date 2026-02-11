@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getSafeImageUrl } from '@/utils/url-validator';
 import CommentSection from './CommentSection';
 import { cn } from '@/lib/utils';
+import { showSuccess } from '@/utils/toast';
 
 interface PostCardProps {
   post: any;
@@ -59,8 +60,13 @@ const PostCard = ({ post, currentUserId, onDelete, onEdit }: PostCardProps) => {
     }
   };
 
+  const handleShare = () => {
+    const url = `${window.location.origin}/artist/${post.author_id}`;
+    navigator.clipboard.writeText(url);
+    showSuccess("Link do perfil copiado!");
+  };
+
   const handleViewProfile = () => {
-    // Redireciona para o perfil do artista (público ou dentro do app)
     navigate(`/app/artist/${post.author_id}`);
   };
 
@@ -131,7 +137,9 @@ const PostCard = ({ post, currentUserId, onDelete, onEdit }: PostCardProps) => {
               {commentsCount}
             </button>
           </div>
-          <button className="text-slate-400 hover:text-[#2D1B69]"><Share2 className="w-4 h-4" /></button>
+          <button onClick={handleShare} className="text-slate-400 hover:text-[#2D1B69] transition-colors">
+            <Share2 className="w-4 h-4" />
+          </button>
         </div>
 
         {showComments && <CommentSection postId={post.id} currentUserId={currentUserId} />}

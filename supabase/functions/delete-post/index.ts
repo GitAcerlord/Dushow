@@ -15,7 +15,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Validar Usuário
     const authHeader = req.headers.get('Authorization')!
     const token = authHeader.replace('Bearer ', '')
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
@@ -23,40 +22,42 @@ serve(async (req) => {
 
     const { postId } = await req.json()
 
-    // 1. Verificar se o post pertence ao usuário
+    // 1. Verificar propriedade e buscar dados do post
     const { data: post, error: fetchError } = await supabaseClient
       .from('posts')
       .select('author_id, image_url')
       .eq('id', postId)
       .single()
 
-    if (fetchError || !post) throw new Error("Post não encontrado.")
-    if (post.author_id !== user.id) throw new Error("Você não tem permissão para excluir este post.")
+    if (fetchError || !post) throw new Error("Post não encontrado.");
+    if (post.author_id !== user.id) throw new Error("Permissão negada.");
 
-    // 2. Limpar Storage se houver imagem
+    // 2. Estornar XP (-5 pontos)
+    await supabaseClient.from('xp_transactions').insert({
+      profile_id: user.id,
+      action: 'DELETE_POST',
+      points: -5
+    });
+
+    // 3. Limpar Storage se houver imagem
     if (post.image_url && post.image_url.includes('supabase.co/storage')) {
       try {
-        const urlParts = post.image_url.split('/')
-        const fileName = urlParts[urlParts.length - 1]
-        // Tenta remover do bucket 'posts' (ajuste se o nome for outro)
-        await supabaseClient.storage.from('posts').remove([fileName])
-      } catch (e) {
-        console.error("[delete-post] Falha ao remover arquivo físico:", e)
-      }
+        const fileName = post.image_url.split('/').pop();
+        if (fileName) await supabaseClient.storage.from('posts').remove([fileName]);
+      } catch (e) { console.error("[delete-post] Erro storage:", e); }
     }
 
-    // 3. Exclusão em cascata manual (Garante limpeza total mesmo sem CASCADE no DB)
-    await supabaseClient.from('post_likes').delete().eq('post_id', postId)
-    await supabaseClient.from('post_comments').delete().eq('post_id', postId)
+    // 4. Excluir Post (Triggers do banco cuidam de likes/comments se configurado, 
+    // mas fazemos manual para garantir persistência)
+    await supabaseClient.from('post_likes').delete().eq('post_id', postId);
+    await supabaseClient.from('post_comments').delete().eq('post_id', postId);
     
     const { error: deleteError } = await supabaseClient
       .from('posts')
       .delete()
-      .eq('id', postId)
+      .eq('id', postId);
 
-    if (deleteError) throw deleteError
-
-    console.log(`[delete-post] Post ${postId} removido com sucesso por ${user.id}`)
+    if (deleteError) throw deleteError;
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
