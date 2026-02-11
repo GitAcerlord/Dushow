@@ -29,7 +29,7 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
   const fetchComments = async () => {
     setLoading(true);
     try {
-      // Usando a sintaxe de alias para garantir que o PostgREST encontre a relação
+      // Usando a exclamação (!) para especificar explicitamente a coluna da chave estrangeira
       const { data, error } = await supabase
         .from('post_comments')
         .select(`
@@ -37,7 +37,7 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
           content,
           user_id,
           created_at,
-          profiles:user_id (
+          profiles!user_id (
             full_name,
             avatar_url
           )
@@ -49,7 +49,6 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
       setComments(data || []);
     } catch (e: any) {
       console.error("[CommentSection] Fetch error:", e);
-      // Se a junção falhar, tentamos buscar sem o perfil como fallback temporário
       fetchCommentsFallback();
     } finally {
       setLoading(false);
@@ -82,7 +81,7 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
           content,
           user_id,
           created_at,
-          profiles:user_id (
+          profiles!user_id (
             full_name,
             avatar_url
           )
@@ -96,7 +95,7 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
       showSuccess("Comentário enviado!");
     } catch (e: any) {
       console.error("[CommentSection] Post error:", e);
-      showError("Erro ao enviar comentário. Tente novamente.");
+      showError("Erro ao enviar comentário.");
     } finally {
       setSubmitting(false);
     }
