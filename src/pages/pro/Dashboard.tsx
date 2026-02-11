@@ -19,16 +19,13 @@ const ProDashboard = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Busca perfil para pontos e selos
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-      
-      // Busca contratos para ganhos e contagem (LEDGER REAL)
-      const { data: contracts } = await supabase.from('contracts').select('value, status').eq('pro_id', user.id);
+      const { data: contracts } = await supabase.from('contracts').select('valor_atual, status').eq('profissional_profile_id', user.id);
 
-      const totalEarnings = contracts?.filter(c => c.status === 'PAID' || c.status === 'COMPLETED')
-        .reduce((acc, curr) => acc + Number(curr.value), 0) || 0;
+      const totalEarnings = contracts?.filter(c => c.status === 'PAGO' || c.status === 'COMPLETED')
+        .reduce((acc, curr) => acc + Number(curr.valor_atual), 0) || 0;
 
-      const upcomingShows = contracts?.filter(c => c.status === 'PAID').length || 0;
+      const upcomingShows = contracts?.filter(c => c.status === 'PAGO').length || 0;
 
       setStats({
         profile,
@@ -42,61 +39,43 @@ const ProDashboard = () => {
     }
   };
 
-  if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin w-8 h-8 text-indigo-600" /></div>;
+  if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin w-8 h-8 text-[#2D1B69]" /></div>;
 
   return (
-    <div className="p-8 space-y-8">
-      <div className="flex justify-between items-end">
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Olá, {stats.profile.full_name}! 👋</h1>
-          <p className="text-slate-500 mt-1">Seu painel está atualizado com os dados reais do banco.</p>
+          <h1 className="text-3xl font-black text-[#2D1B69]">Olá, {stats.profile.full_name}! 👋</h1>
+          <p className="text-slate-500 mt-1">Seu resumo financeiro e de agenda.</p>
         </div>
-        <div className="flex gap-2">
-          {stats.profile.is_superstar && <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-full text-sm font-bold border border-amber-100"><Award className="w-4 h-4" /> Superstar</div>}
-          {stats.profile.is_verified && <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm font-bold border border-blue-100"><Star className="w-4 h-4 fill-current" /> Verificado</div>}
+        <div className="flex flex-wrap gap-2">
+          {stats.profile.is_superstar && <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-full text-xs font-black border border-amber-100"><Award className="w-3 h-3" /> Superstar</div>}
+          {stats.profile.is_verified && <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-xs font-black border border-blue-100"><Star className="w-3 h-3 fill-current" /> Verificado</div>}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="p-6 border-none shadow-sm bg-white">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-emerald-50 rounded-xl"><DollarSign className="w-6 h-6 text-emerald-600" /></div>
-            <div>
-              <p className="text-sm text-slate-500 font-medium">Ganhos Totais</p>
-              <h3 className="text-xl font-bold text-slate-900">R$ {stats.totalEarnings.toLocaleString('pt-BR')}</h3>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-6 border-none shadow-sm bg-white">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-indigo-50 rounded-xl"><Calendar className="w-6 h-6 text-indigo-600" /></div>
-            <div>
-              <p className="text-sm text-slate-500 font-medium">Shows Confirmados</p>
-              <h3 className="text-xl font-bold text-slate-900">{stats.upcomingShows} Eventos</h3>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-6 border-none shadow-sm bg-white">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-amber-50 rounded-xl"><Star className="w-6 h-6 text-amber-600" /></div>
-            <div>
-              <p className="text-sm text-slate-500 font-medium">Avaliação</p>
-              <h3 className="text-xl font-bold text-slate-900">{stats.profile.rating} / 5.0</h3>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-6 border-none shadow-sm bg-white">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-purple-50 rounded-xl"><TrendingUp className="w-6 h-6 text-purple-600" /></div>
-            <div>
-              <p className="text-sm text-slate-500 font-medium">Pontos</p>
-              <h3 className="text-xl font-bold text-slate-900">{stats.profile.points} pts</h3>
-            </div>
-          </div>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard title="Ganhos Totais" value={`R$ ${stats.totalEarnings.toLocaleString('pt-BR')}`} icon={DollarSign} color="emerald" />
+        <StatCard title="Shows Confirmados" value={`${stats.upcomingShows} Eventos`} icon={Calendar} color="indigo" />
+        <StatCard title="Avaliação" value={`${stats.profile.rating} / 5.0`} icon={Star} color="amber" />
+        <StatCard title="Pontos XP" value={`${stats.profile.xp_total} pts`} icon={TrendingUp} color="purple" />
       </div>
     </div>
   );
 };
+
+const StatCard = ({ title, value, icon: Icon, color }: any) => (
+  <Card className="p-6 border-none shadow-sm bg-white hover:shadow-md transition-all">
+    <div className="flex items-center gap-4">
+      <div className={`p-3 rounded-xl bg-${color}-50`}>
+        <Icon className={`w-6 h-6 text-${color}-600`} />
+      </div>
+      <div>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{title}</p>
+        <h3 className="text-xl font-black text-[#2D1B69]">{value}</h3>
+      </div>
+    </div>
+  </Card>
+);
 
 export default ProDashboard;
