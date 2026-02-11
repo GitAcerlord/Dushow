@@ -13,6 +13,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from "@/utils/toast";
 import { cn } from "@/lib/utils";
+import { formatCurrencyBRL } from "@/utils/currency";
 
 const ContractDetails = () => {
   const { id } = useParams();
@@ -136,7 +137,7 @@ const ContractDetails = () => {
               "text-3xl font-black",
               isClient ? "text-blue-600" : "text-indigo-600"
             )}>
-              R$ {Number(contract.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              {formatCurrencyBRL(contract.value)}
             </p>
           </div>
         </div>

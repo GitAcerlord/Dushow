@@ -11,6 +11,7 @@ import { Link } from "react-router-dom";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from "@/utils/toast";
 import { cn } from "@/lib/utils";
+import { formatCurrencyBRL } from "@/utils/currency";
 
 const ProContracts = () => {
   const [contracts, setContracts] = useState<any[]>([]);
@@ -107,7 +108,7 @@ const ProContracts = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-500">
                   <div className="flex items-center gap-2"><Calendar className="w-4 h-4" /> {new Date(contract.event_date).toLocaleDateString()}</div>
-                  <div className="flex items-center gap-2 font-bold text-indigo-600"><DollarSign className="w-4 h-4" /> R$ {Number(contract.value).toLocaleString('pt-BR')}</div>
+                  <div className="flex items-center gap-2 font-bold text-indigo-600"><DollarSign className="w-4 h-4" /> {formatCurrencyBRL(contract.value)}</div>
                 </div>
               </div>
 

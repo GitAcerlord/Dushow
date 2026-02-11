@@ -95,7 +95,24 @@ const Feed = () => {
           tags: tagsArray
         });
         if (error) throw error;
-        await supabase.from('profiles').update({ xp_total: (userProfile.xp_total || 0) + 5 }).eq('id', userProfile.id);
+
+        const { data: latestProfile, error: profileError } = await supabase
+          .from('profiles')
+          .select('xp_total')
+          .eq('id', userProfile.id)
+          .single();
+
+        if (profileError) throw profileError;
+
+        const updatedXp = (latestProfile?.xp_total || 0) + 5;
+        const { error: xpError } = await supabase
+          .from('profiles')
+          .update({ xp_total: updatedXp })
+          .eq('id', userProfile.id);
+
+        if (xpError) throw xpError;
+
+        setUserProfile((prev: any) => prev ? { ...prev, xp_total: updatedXp } : prev);
         showSuccess("Publicado! +5 XP.");
       }
       setPostContent(""); setPostImage(""); setPostTags(""); setEditingPost(null);

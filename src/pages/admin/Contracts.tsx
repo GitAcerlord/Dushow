@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from "@/utils/toast";
+import { formatCurrencyBRL, parseMonetaryValue } from "@/utils/currency";
 
 const AdminContracts = () => {
   const [contracts, setContracts] = useState<any[]>([]);
@@ -50,7 +51,7 @@ const AdminContracts = () => {
     }
   };
 
-  const totalVolume = contracts.reduce((acc, curr) => acc + Number(curr.value), 0);
+  const totalVolume = contracts.reduce((acc, curr) => acc + parseMonetaryValue(curr.value), 0);
 
   return (
     <div className="p-8 space-y-8">
@@ -63,7 +64,7 @@ const AdminContracts = () => {
         </Card>
         <Card className="p-6 border-none shadow-sm bg-white">
           <p className="text-sm text-slate-500">Volume Transacionado</p>
-          <h3 className="text-2xl font-bold text-emerald-600">R$ {totalVolume.toLocaleString('pt-BR')}</h3>
+          <h3 className="text-2xl font-bold text-emerald-600">{formatCurrencyBRL(totalVolume)}</h3>
         </Card>
       </div>
 
@@ -92,7 +93,7 @@ const AdminContracts = () => {
                     <TableCell className="font-bold">{c.event_name}</TableCell>
                     <TableCell>{c.pro?.full_name}</TableCell>
                     <TableCell>{c.client?.full_name}</TableCell>
-                    <TableCell>R$ {Number(c.value).toLocaleString('pt-BR')}</TableCell>
+                    <TableCell>{formatCurrencyBRL(c.value)}</TableCell>
                     <TableCell><Badge>{c.status}</Badge></TableCell>
                   </TableRow>
                 ))
