@@ -29,68 +29,76 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
   const fetchComments = async () => {
     setLoading(true);
     try {
-      // Usando a exclamação (!) para especificar explicitamente a coluna da chave estrangeira
-      const { data, error } = await supabase
+      // 1. Busca apenas os comentários (sem join para evitar erro PGRST200)
+      const { data: commentsData, error: commentsError } = await supabase
         .from('post_comments')
-        .select(`
-          id,
-          content,
-          user_id,
-          created_at,
-          profiles!user_id (
-            full_name,
-            avatar_url
-          )
-        `)
+        .select('id, content, user_id, created_at')
         .eq('post_id', postId)
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
-      setComments(data || []);
+      if (commentsError) throw commentsError;
+
+      if (!commentsData || commentsData.length === 0) {
+        setComments([]);
+        return;
+      }
+
+      // 2. Extrai IDs únicos de usuários para buscar os perfis
+      const userIds = Array.from(new Set(commentsData.map(c => c.user_id)));
+
+      // 3. Busca os perfis dos autores
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // 4. Une os dados manualmente (Manual Join)
+      const mergedComments = commentsData.map(comment => ({
+        ...comment,
+        profiles: profilesData?.find(p => p.id === comment.user_id) || { full_name: 'Usuário', avatar_url: null }
+      }));
+
+      setComments(mergedComments);
     } catch (e: any) {
       console.error("[CommentSection] Fetch error:", e);
-      fetchCommentsFallback();
+      showError("Erro ao carregar comentários.");
     } finally {
       setLoading(false);
     }
-  };
-
-  const fetchCommentsFallback = async () => {
-    const { data, error } = await supabase
-      .from('post_comments')
-      .select('*')
-      .eq('post_id', postId)
-      .order('created_at', { ascending: true });
-    
-    if (!error) setComments(data || []);
   };
 
   const handleSend = async () => {
     if (!newComment.trim() || submitting) return;
     setSubmitting(true);
     try {
-      const { data, error } = await supabase
+      // 1. Insere o comentário
+      const { data: insertedData, error: insertError } = await supabase
         .from('post_comments')
         .insert({ 
           post_id: postId, 
           user_id: currentUserId, 
           content: newComment 
         })
-        .select(`
-          id,
-          content,
-          user_id,
-          created_at,
-          profiles!user_id (
-            full_name,
-            avatar_url
-          )
-        `)
+        .select('id, content, user_id, created_at')
         .single();
 
-      if (error) throw error;
+      if (insertError) throw insertError;
+
+      // 2. Busca o perfil do usuário atual para a UI (evita novo join problemático)
+      const { data: myProfile } = await supabase
+        .from('profiles')
+        .select('full_name, avatar_url')
+        .eq('id', currentUserId)
+        .single();
+
+      const newCommentWithProfile = {
+        ...insertedData,
+        profiles: myProfile || { full_name: 'Você', avatar_url: null }
+      };
       
-      setComments(prev => [...prev, data]);
+      setComments(prev => [...prev, newCommentWithProfile]);
       setNewComment("");
       showSuccess("Comentário enviado!");
     } catch (e: any) {
@@ -145,7 +153,7 @@ const CommentSection = ({ postId, currentUserId }: CommentSectionProps) => {
               </Avatar>
               <div className="flex-1 space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-slate-900">{comment.profiles?.full_name || 'Usuário'}</span>
+                  <span className="text-xs font-black text-slate-900">{comment.profiles?.full_name}</span>
                   {comment.user_id === currentUserId && (
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
