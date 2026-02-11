@@ -4,7 +4,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, UserCircle, MessageSquare, Calendar,
-  Trophy, CreditCard, Sparkles, LogOut, Mic2, Star, FileText, Menu, Rss, ShieldCheck
+  Trophy, CreditCard, Sparkles, LogOut, Mic2, Star, FileText, Menu, Rss, ShieldCheck, Settings
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -24,6 +24,7 @@ const menuItems = [
   { icon: Trophy, label: 'Conquistas', path: '/pro/achievements' },
   { icon: Sparkles, label: 'Planos & Upgrade', path: '/pro/plans' },
   { icon: CreditCard, label: 'Financeiro', path: '/pro/finance' },
+  { icon: Settings, label: 'Configurações', path: '/pro/settings' },
 ];
 
 const SidebarContent = ({ onClose }: { onClose?: () => void }) => {

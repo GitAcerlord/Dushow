@@ -38,6 +38,7 @@ import ProReviews from "./pages/pro/Reviews";
 import ProContracts from "./pages/pro/Contracts";
 import ContractDetails from "./pages/pro/ContractDetails";
 import Badges from "./pages/pro/Badges";
+import ProSettings from "./pages/pro/Settings";
 
 // Client
 import ClientLayout from "./pages/client/ClientLayout";
@@ -102,6 +103,7 @@ const App = () => (
             <Route path="plans" element={<ProPlans />} />
             <Route path="plans/checkout" element={<PlanCheckout />} />
             <Route path="finance" element={<ProFinance />} />
+            <Route path="settings" element={<ProSettings />} />
           </Route>
 
           {/* Painel do Contratante */}
