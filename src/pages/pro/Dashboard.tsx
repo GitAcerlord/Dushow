@@ -19,21 +19,28 @@ const ProDashboard = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Busca perfil real
-      const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      // 1. Busca perfil para pegar XP e Rating reais
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, xp_total, rating, is_superstar, is_verified')
+        .eq('id', user.id)
+        .single();
       
-      // Busca contratos reais para calcular ganhos
+      // 2. Busca contratos para calcular financeiro e agenda
       const { data: contracts } = await supabase
         .from('contracts')
         .select('valor_atual, status')
         .eq('profissional_profile_id', user.id);
 
-      // Ganhos: Apenas contratos pagos ou concluídos
-      const totalEarnings = contracts?.filter(c => ['PAGO', 'COMPLETED', 'PAID'].includes(c.status))
-        .reduce((acc, curr) => acc + Number(curr.valor_atual), 0) || 0;
+      // Ganhos: Apenas contratos que já foram pagos ou concluídos
+      const totalEarnings = contracts?.filter(c => 
+        ['PAGO', 'COMPLETED', 'PAID'].includes(c.status)
+      ).reduce((acc, curr) => acc + Number(curr.valor_atual), 0) || 0;
 
-      // Shows Confirmados: Contratos assinados ou pagos que ainda não foram concluídos
-      const upcomingShows = contracts?.filter(c => ['ASSINADO', 'PAGO', 'SIGNED', 'PAID'].includes(c.status)).length || 0;
+      // Shows Confirmados: Contratos Aceitos, Assinados ou Pagos
+      const upcomingShows = contracts?.filter(c => 
+        ['ACEITO', 'ASSINADO', 'PAGO', 'ACCEPTED', 'SIGNED', 'PAID'].includes(c.status)
+      ).length || 0;
 
       setStats({
         profile,
@@ -57,16 +64,44 @@ const ProDashboard = () => {
           <p className="text-slate-500 mt-1">Seu resumo financeiro e de agenda em tempo real.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {stats.profile?.is_superstar && <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-full text-xs font-black border border-amber-100"><Award className="w-3 h-3" /> Superstar</div>}
-          {stats.profile?.is_verified && <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-xs font-black border border-blue-100"><Star className="w-3 h-3 fill-current" /> Verificado</div>}
+          {stats.profile?.is_superstar && (
+            <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-full text-xs font-black border border-amber-100">
+              <Award className="w-3 h-3" /> Superstar
+            </div>
+          )}
+          {stats.profile?.is_verified && (
+            <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-xs font-black border border-blue-100">
+              <Star className="w-3 h-3 fill-current" /> Verificado
+            </div>
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Ganhos Totais" value={`R$ ${stats.totalEarnings.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} icon={DollarSign} color="emerald" />
-        <StatCard title="Shows Confirmados" value={`${stats.upcomingShows} Eventos`} icon={Calendar} color="indigo" />
-        <StatCard title="Avaliação" value={`${stats.profile?.rating || '5.0'} / 5.0`} icon={Star} color="amber" />
-        <StatCard title="Pontos XP" value={`${stats.profile?.xp_total || 0} pts`} icon={TrendingUp} color="purple" />
+        <StatCard 
+          title="Ganhos Totais" 
+          value={`R$ ${stats.totalEarnings.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} 
+          icon={DollarSign} 
+          color="emerald" 
+        />
+        <StatCard 
+          title="Shows Confirmados" 
+          value={`${stats.upcomingShows} Eventos`} 
+          icon={Calendar} 
+          color="indigo" 
+        />
+        <StatCard 
+          title="Avaliação" 
+          value={`${stats.profile?.rating?.toFixed(1) || '5.0'} / 5.0`} 
+          icon={Star} 
+          color="amber" 
+        />
+        <StatCard 
+          title="Pontos XP" 
+          value={`${stats.profile?.xp_total || 0} pts`} 
+          icon={TrendingUp} 
+          color="purple" 
+        />
       </div>
     </div>
   );

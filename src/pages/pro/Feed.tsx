@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Zap, Image as ImageIcon, X, ChevronDown } from "lucide-react";
+import { Loader2, Zap, Image as ImageIcon, X } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from "@/utils/toast";
 import { getSafeImageUrl } from '@/utils/url-validator';
@@ -24,7 +24,6 @@ const Feed = () => {
   const [userProfile, setUserProfile] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Estados para Edição
   const [editingPost, setEditingPost] = useState<any>(null);
   const [editContent, setEditContent] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
@@ -73,6 +72,7 @@ const Feed = () => {
         imageUrl = publicUrl;
       }
 
+      // 1. Insere o Post
       const { error: postError } = await supabase.from('posts').insert({
         author_id: userProfile.id,
         content: postContent,
@@ -80,7 +80,14 @@ const Feed = () => {
       });
       if (postError) throw postError;
 
-      showSuccess("Publicado com sucesso!");
+      // 2. Adiciona XP (5 pontos por post)
+      await supabase.from('xp_transactions').insert({
+        profile_id: userProfile.id,
+        action: 'POST',
+        points: 5
+      });
+
+      showSuccess("Publicado com sucesso! +5 XP ganhos.");
       setPostContent(""); setSelectedImage(null); setImagePreview(null);
       fetchData(0);
     } catch (error: any) {
@@ -91,15 +98,22 @@ const Feed = () => {
   };
 
   const handleDeletePost = async (postId: string) => {
-    if (!confirm("Tem certeza que deseja excluir este post?")) return;
+    if (!confirm("Tem certeza que deseja excluir este post permanentemente?")) return;
     
     try {
-      const { error } = await supabase.from('posts').delete().eq('id', postId);
+      // Exclusão real no banco de dados
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', postId);
+
       if (error) throw error;
+
       setPosts(prev => prev.filter(p => p.id !== postId));
-      showSuccess("Post removido.");
+      showSuccess("Post removido do banco de dados.");
     } catch (error: any) {
-      showError("Erro ao excluir post.");
+      console.error("Erro ao deletar:", error);
+      showError("Erro ao excluir post do servidor.");
     }
   };
 
@@ -182,7 +196,6 @@ const Feed = () => {
         ))}
       </div>
 
-      {/* Modal de Edição */}
       <Dialog open={!!editingPost} onOpenChange={() => setEditingPost(null)}>
         <DialogContent className="rounded-[2rem]">
           <DialogHeader>
