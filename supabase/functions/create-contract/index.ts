@@ -21,6 +21,15 @@ serve(async (req) => {
     if (authError || !user) throw new Error("Unauthorized")
 
     const { proId, eventName, eventDate, location } = await req.json()
+    // Normalize eventDate: ensure it's either a valid ISO string or null
+    let eventDateIso: string | null = null;
+    if (eventDate) {
+      const d = new Date(eventDate);
+      if (isNaN(d.getTime())) {
+        throw new Error('Data do evento inválida');
+      }
+      eventDateIso = d.toISOString();
+    }
 
     // SECURITY FIX: Fetch the artist's actual price from the database
     const { data: artist, error: artistError } = await supabaseClient
@@ -34,11 +43,11 @@ serve(async (req) => {
     // Create contract with the verified price
     const { data: contract, error: contractError } = await supabaseClient
       .from('contracts')
-      .insert({
+        .insert({
         client_id: user.id,
         pro_id: proId,
         event_name: eventName,
-        event_date: eventDate,
+        event_date: eventDateIso,
         event_location: location,
         value: artist.price, // Use server-side price
         status: 'PENDING'

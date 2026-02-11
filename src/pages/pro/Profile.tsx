@@ -61,6 +61,76 @@ const ProProfile = () => {
     }
   };
 
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      setUploading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado.");
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+
+      const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id);
+      if (updateError) throw updateError;
+
+      setFormData({ ...formData, avatar_url: publicUrl });
+      setProfile({ ...profile, avatar_url: publicUrl });
+      showSuccess("Foto de perfil atualizada!");
+    } catch (error: any) {
+      showError(error.message || "Erro ao fazer upload da imagem.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handlePortfolioUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+
+      setUploading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado.");
+
+      const uploadedUrls: string[] = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${user.id}-${Date.now()}-${i}.${fileExt}`;
+        const filePath = `portfolio/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage.from('portfolio').upload(filePath, file);
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage.from('portfolio').getPublicUrl(filePath);
+        uploadedUrls.push(publicUrl);
+      }
+
+      const newPortfolio = [...(formData.portfolio_urls || []), ...uploadedUrls];
+      const { error: updateError } = await supabase.from('profiles').update({ portfolio_urls: newPortfolio }).eq('id', profile.id);
+      if (updateError) throw updateError;
+
+      setFormData({ ...formData, portfolio_urls: newPortfolio });
+      setProfile({ ...profile, portfolio_urls: newPortfolio });
+      showSuccess("Imagens de portfólio adicionadas!");
+    } catch (error: any) {
+      console.error(error);
+      showError(error.message || "Erro ao fazer upload do portfólio.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin text-indigo-600 w-10 h-10" /></div>;
 
   return (
@@ -74,7 +144,7 @@ const ProProfile = () => {
                 <Camera className="w-6 h-6" /> Alterar Foto
               </button>
             </div>
-            <input type="file" ref={avatarInputRef} className="hidden" accept="image/*" onChange={() => {}} />
+            <input type="file" ref={avatarInputRef} className="hidden" accept="image/*" onChange={handleAvatarUpload} />
           </div>
 
           <div className="flex-1 space-y-6 w-full">
@@ -116,6 +186,27 @@ const ProProfile = () => {
               </div>
             </div>
             <p className="text-slate-600 leading-relaxed font-medium">{profile.bio || "Nenhuma biografia adicionada."}</p>
+
+            <div className="mt-4">
+              <h4 className="text-sm font-black text-slate-700 mb-3">Portfólio</h4>
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                {(formData.portfolio_urls || []).map((url: string, i: number) => (
+                  <div key={i} className="aspect-square rounded-lg overflow-hidden bg-slate-100 border border-slate-100">
+                    <img src={getSafeImageUrl(url, '')} className="w-full h-full object-cover" />
+                  </div>
+                ))}
+                {((formData.portfolio_urls || []).length === 0) && (
+                  <div className="col-span-3 text-sm text-slate-400">Nenhuma imagem no portfólio ainda.</div>
+                )}
+              </div>
+
+              {isEditing && (
+                <div className="mt-4">
+                  <Button variant="outline" onClick={() => portfolioInputRef.current?.click()} className="rounded-xl"><Upload className="w-4 h-4 mr-2" /> Adicionar Imagens</Button>
+                  <input type="file" ref={portfolioInputRef} className="hidden" accept="image/*" multiple onChange={handlePortfolioUpload} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </Card>

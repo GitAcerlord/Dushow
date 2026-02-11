@@ -80,6 +80,30 @@ const ContractDetails = () => {
     }
   };
 
+  const formatCurrency = (v: any) => {
+    const n = Number(v);
+    if (!isFinite(n)) return '—';
+    return `R$ ${n.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+  };
+
+  const handleOpenDispute = async () => {
+    const reason = window.prompt('Descreva brevemente o motivo da disputa (danos, falha, etc):');
+    if (!reason) return;
+    try {
+      const { data, error } = await supabase.functions.invoke('contract-state-machine', {
+        body: { contractId: id, action: 'OPEN_DISPUTE', openedBy: user?.id, reason }
+      });
+      if (error) {
+        const errBody = await error.context?.json();
+        throw new Error(errBody?.error || error.message);
+      }
+      showSuccess('Disputa aberta. Um administrador irá revisar.');
+      fetchData();
+    } catch (e: any) {
+      showError(e.message || 'Erro ao abrir disputa.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="h-[calc(100vh-100px)] flex items-center justify-center">
@@ -136,7 +160,7 @@ const ContractDetails = () => {
               "text-3xl font-black",
               isClient ? "text-blue-600" : "text-indigo-600"
             )}>
-              R$ {Number(contract.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              {formatCurrency(contract.value)}
             </p>
           </div>
         </div>

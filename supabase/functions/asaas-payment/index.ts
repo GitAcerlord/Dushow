@@ -81,24 +81,26 @@ serve(async (req) => {
     // 4. SUCESSO NO PAGAMENTO -> AGORA ATUALIZAMOS O BANCO DE DADOS
     
     const feePercentage = PLAN_FEES[contract.pro?.plan_tier || 'free'] || 0.15;
-    const platformFee = totalValue * feePercentage;
-    const artistNet = totalValue - platformFee;
+    const platformFee = Number((totalValue * feePercentage).toFixed(2));
+    const artistNet = Number((totalValue - platformFee).toFixed(2));
 
-    // Registro no Ledger (Auditoria)
+    // Registro no Ledger (Auditoria) com referência ao pagamento Asaas
     await supabaseClient.from('financial_ledger').insert([
       {
         contract_id: contractId,
         user_id: contract.client_id,
         amount: -totalValue,
         type: 'DEBIT',
-        description: `Pagamento aprovado: ${contract.event_name}`
+        description: `Pagamento aprovado: ${contract.event_name}`,
+        external_payment_id: asaasData.id
       },
       {
         contract_id: contractId,
         user_id: contract.pro_id,
         amount: artistNet,
         type: 'CREDIT',
-        description: `Cachê recebido (Líquido): ${contract.event_name}`
+        description: `Cachê recebido (Líquido): ${contract.event_name}`,
+        external_payment_id: asaasData.id
       }
     ]);
 
@@ -108,11 +110,12 @@ serve(async (req) => {
       amount: artistNet 
     });
 
-    // Marcar Contrato como PAGO
+    // Atualizar contrato com referência ao pagamento e valores calculados
     await supabaseClient
       .from('contracts')
-      .update({ status: 'PAID' })
+      .update({ status: 'PAID', asaas_payment_id: asaasData.id, paid_at: new Date().toISOString(), platform_fee: platformFee, artist_net: artistNet })
       .eq('id', contractId);
+    
 
     return new Response(JSON.stringify({ 
       success: true, 

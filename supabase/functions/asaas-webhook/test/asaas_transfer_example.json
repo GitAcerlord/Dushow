@@ -1,0 +1,14 @@
+{
+  "event": "TRANSFER_COMPLETED",
+  "transfer": {
+    "id": "trf_000009876543",
+    "status": "COMPLETED",
+    "amount": 250.00,
+    "originalValue": 250.00,
+    "fromCustomer": "cus_000001234",
+    "toCustomer": "cus_000005678",
+    "description": "Transferência de saque",
+    "dateCreated": "2026-02-11T11:00:00Z",
+    "transferDate": "2026-02-11T11:02:00Z"
+  }
+}

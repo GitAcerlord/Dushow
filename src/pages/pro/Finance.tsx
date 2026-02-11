@@ -53,6 +53,14 @@ const ProFinance = () => {
         balance_available: profile.balance_available - amount 
       }).eq('id', profile.id);
 
+      // Inserir lançamento no ledger para auditar a solicitação de saque
+      await supabase.from('financial_ledger').insert({
+        user_id: profile.id,
+        amount: -amount,
+        type: 'DEBIT',
+        description: `Solicitação de saque - PIX: ${pixKey}`
+      });
+
       showSuccess("Solicitação de saque enviada! Prazo: 24h úteis.");
       fetchData();
     } catch (e) {
@@ -61,6 +69,21 @@ const ProFinance = () => {
       setIsSubmitting(false);
     }
   };
+
+  // Movimentações do usuário (ledger)
+  const [movements, setMovements] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!profile) return;
+    (async () => {
+      const { data } = await supabase
+        .from('financial_ledger')
+        .select('*')
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false });
+      setMovements(data || []);
+    })();
+  }, [profile]);
 
   if (loading) return <div className="p-20 flex justify-center"><Loader2 className="animate-spin text-indigo-600" /></div>;
 
@@ -127,6 +150,26 @@ const ProFinance = () => {
           </Dialog>
         </Card>
       </div>
+      <Card className="p-6 border-none shadow-sm bg-white rounded-[2.5rem]">
+        <h3 className="text-lg font-black mb-4">Minhas Movimentações</h3>
+        {movements.length === 0 ? (
+          <div className="text-sm text-slate-400">Nenhuma movimentação encontrada.</div>
+        ) : (
+          <div className="grid gap-3">
+            {movements.map((m) => (
+              <div key={m.id} className="flex justify-between items-center p-3 rounded-lg border border-slate-100">
+                <div>
+                  <div className="text-sm font-bold">{m.description}</div>
+                  <div className="text-[12px] text-slate-400">{new Date(m.created_at).toLocaleString()}</div>
+                </div>
+                <div className={m.type === 'CREDIT' ? 'text-emerald-600 font-black' : 'text-red-600 font-black'}>
+                  {m.type === 'CREDIT' ? '+' : '-'} R$ {Math.abs(Number(m.amount)).toLocaleString('pt-BR')}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 };

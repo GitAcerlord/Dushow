@@ -22,6 +22,7 @@ import AdminApprovals from "./pages/admin/Approvals";
 import AdminSettings from "./pages/admin/Settings";
 import AdminFinance from "./pages/admin/Finance";
 import AdminMessages from "./pages/admin/Messages";
+import AdminDisputes from "./pages/admin/Disputes";
 
 // Pro
 import ProLayout from "./pages/pro/ProLayout";
@@ -38,6 +39,7 @@ import ProReviews from "./pages/pro/Reviews";
 import ProContracts from "./pages/pro/Contracts";
 import ContractDetails from "./pages/pro/ContractDetails";
 import Badges from "./pages/pro/Badges";
+import ProSettings from "./pages/pro/Settings";
 
 // Client
 import ClientLayout from "./pages/client/ClientLayout";
@@ -77,6 +79,7 @@ const App = () => (
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="contracts" element={<AdminContracts />} />
+            <Route path="disputes" element={<AdminDisputes />} />
             <Route path="messages" element={<AdminMessages />} />
             <Route path="finance" element={<AdminFinance />} />
             <Route path="approvals" element={<AdminApprovals />} />
@@ -99,6 +102,7 @@ const App = () => (
             <Route path="agenda" element={<ProAgenda />} />
             <Route path="badges" element={<Badges />} />
             <Route path="achievements" element={<ProAchievements />} />
+            <Route path="settings" element={<ProSettings />} />
             <Route path="plans" element={<ProPlans />} />
             <Route path="plans/checkout" element={<PlanCheckout />} />
             <Route path="finance" element={<ProFinance />} />
