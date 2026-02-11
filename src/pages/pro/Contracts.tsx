@@ -30,7 +30,7 @@ const ProContracts = () => {
       const { data, error } = await supabase
         .from('contracts')
         .select('*, profiles!contracts_client_id_fkey(full_name, avatar_url)')
-        .eq('pro_id', user.id)
+        .eq('profissional_profile_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -49,75 +49,63 @@ const ProContracts = () => {
       if (!user) throw new Error("Usuário não autenticado.");
       
       const { data, error } = await supabase.functions.invoke('contract-state-machine', {
-        body: { 
-          contractId: id, 
-          action: action, 
-          userId: user.id 
-        }
+        body: { contractId: id, action: action, userId: user.id }
       });
 
-      // Tratamento de erro detalhado para FunctionsHttpError
-      if (error) {
-        const errorBody = await error.context?.json();
-        throw new Error(errorBody?.error || error.message);
-      }
-
-      if (data?.error) throw new Error(data.error);
-
-      showSuccess(`Contrato atualizado para: ${data.status}`);
+      if (error) throw error;
+      showSuccess(`Contrato atualizado!`);
       fetchContracts();
     } catch (error: any) {
-      console.error("Action Error:", error);
       showError(error.message || "Erro ao processar contrato.");
     } finally {
       setProcessingId(null);
     }
   };
 
-  if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin w-8 h-8 text-indigo-600" /></div>;
+  if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin w-8 h-8 text-[#2D1B69]" /></div>;
 
   return (
     <div className="p-4 md:p-8 space-y-8 max-w-5xl mx-auto">
       <div>
-        <h1 className="text-3xl font-black text-slate-900">Meus Contratos</h1>
-        <p className="text-slate-500">Gestão governada pelo backend com auditoria financeira.</p>
+        <h1 className="text-3xl font-black text-[#2D1B69]">Meus Contratos</h1>
+        <p className="text-slate-500">Gestão de propostas e shows confirmados.</p>
       </div>
 
       <div className="grid gap-6">
         {contracts.length === 0 ? (
-          <Card className="p-12 text-center text-slate-400 font-medium border-dashed border-2">
+          <Card className="p-12 text-center text-slate-400 font-medium border-dashed border-2 rounded-[2rem]">
             Nenhum contrato encontrado.
           </Card>
         ) : (
           contracts.map((contract) => (
-            <Card key={contract.id} className="p-6 border-none shadow-sm bg-white flex flex-col md:flex-row gap-6 items-start md:items-center rounded-[2rem]">
+            <Card key={contract.id} className="p-6 border-none shadow-sm bg-white flex flex-col md:flex-row gap-6 items-start md:items-center rounded-[2.5rem] hover:shadow-md transition-all">
               <div className="flex-1 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-slate-900">{contract.event_name}</h3>
+                  <h3 className="text-xl font-bold text-[#2D1B69]">{contract.event_name}</h3>
                   <Badge className={cn(
-                    "uppercase text-[10px] font-bold px-3 py-1 rounded-full",
+                    "uppercase text-[10px] font-black px-3 py-1 rounded-full",
                     contract.status === 'COMPLETED' ? 'bg-emerald-500 text-white' : 
-                    contract.status === 'ACCEPTED' ? 'bg-blue-500 text-white' :
-                    contract.status === 'REJECTED' ? 'bg-red-500 text-white' : 
-                    contract.status === 'PAID' ? 'bg-indigo-500 text-white' : 'bg-amber-500 text-white'
+                    contract.status === 'ACEITO' ? 'bg-[#FFB703] text-[#2D1B69]' :
+                    contract.status === 'REJEITADO' ? 'bg-red-500 text-white' : 
+                    contract.status === 'PAGO' ? 'bg-[#2D1B69] text-white' : 'bg-slate-100 text-slate-500'
                   )}>
                     {contract.status}
                   </Badge>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-500">
-                  <div className="flex items-center gap-2"><Calendar className="w-4 h-4" /> {new Date(contract.event_date).toLocaleDateString()}</div>
-                  <div className="flex items-center gap-2 font-bold text-indigo-600"><DollarSign className="w-4 h-4" /> R$ {Number(contract.value).toLocaleString('pt-BR')}</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-500 font-medium">
+                  <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-[#2D1B69]" /> {new Date(contract.data_evento).toLocaleDateString()}</div>
+                  <div className="flex items-center gap-2 font-black text-[#2D1B69]"><DollarSign className="w-4 h-4" /> R$ {Number(contract.valor_atual).toLocaleString('pt-BR')}</div>
                 </div>
               </div>
 
               <div className="flex flex-row md:flex-col gap-2 w-full md:w-auto">
-                {(contract.status === 'CREATED' || contract.status === 'PENDING') && (
+                {contract.status === 'PENDING' && (
                   <>
                     <Button 
                       disabled={processingId === contract.id}
                       onClick={() => handleAction(contract.id, 'ACCEPT')} 
-                      className="bg-indigo-600 flex-1 rounded-xl"
+                      className="bg-[#2D1B69] hover:bg-[#1a1040] text-white flex-1 rounded-xl font-bold"
                     >
                       {processingId === contract.id ? <Loader2 className="animate-spin" /> : "Aceitar"}
                     </Button>
@@ -125,23 +113,14 @@ const ProContracts = () => {
                       disabled={processingId === contract.id}
                       onClick={() => handleAction(contract.id, 'REJECT')} 
                       variant="outline" 
-                      className="text-red-600 border-red-100 flex-1 rounded-xl"
+                      className="text-red-600 border-red-100 flex-1 rounded-xl font-bold"
                     >
                       Rejeitar
                     </Button>
                   </>
                 )}
-                {contract.status === 'PAID' && (
-                  <Button 
-                    disabled={processingId === contract.id}
-                    onClick={() => handleAction(contract.id, 'COMPLETE')} 
-                    className="bg-emerald-600 flex-1 rounded-xl"
-                  >
-                    Concluir Show & Liberar Saldo
-                  </Button>
-                )}
-                <Button variant="ghost" asChild className="text-indigo-600 gap-2 flex-1 rounded-xl">
-                  <Link to={`/pro/contracts/${contract.id}`}><FileText className="w-4 h-4" /> Detalhes</Link>
+                <Button variant="ghost" asChild className="text-[#2D1B69] hover:bg-purple-50 gap-2 flex-1 rounded-xl font-bold">
+                  <Link to={`/app/contracts/${contract.id}`}><FileText className="w-4 h-4" /> Detalhes</Link>
                 </Button>
               </div>
             </Card>

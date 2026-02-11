@@ -38,7 +38,6 @@ const Login = () => {
 
       if (error) throw error;
 
-      // Buscar o perfil para saber o papel (role)
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
@@ -48,41 +47,35 @@ const Login = () => {
       if (profileError) throw profileError;
 
       showSuccess("Bem-vindo de volta!");
-      
-      // Redirecionamento baseado no papel e na nova estrutura de rotas
-      if (profile.role === 'ADMIN') {
-        navigate('/admin');
-      } else {
-        // PRO e CLIENT agora usam a rota unificada /app
-        navigate('/app');
-      }
+      if (profile.role === 'ADMIN') navigate('/admin');
+      else navigate('/app');
     } catch (error: any) {
-      showError(error.message || "Erro ao entrar. Verifique suas credenciais.");
+      showError(error.message || "Erro ao entrar.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-      <Card className="max-w-md w-full p-8 border-none shadow-2xl bg-white rounded-3xl">
+    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6">
+      <Card className="max-w-md w-full p-8 border-none shadow-2xl bg-white rounded-[2.5rem]">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-4 shadow-lg shadow-indigo-200">
-            <Mic2 className="text-white w-8 h-8" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#2D1B69] rounded-2xl mb-4 shadow-lg shadow-purple-100">
+            <Mic2 className="text-[#FFB703] w-8 h-8" />
           </div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Entrar na DUSHOW</h1>
+          <h1 className="text-3xl font-black text-[#2D1B69] tracking-tight">Entrar na DUSHOW</h1>
           <p className="text-slate-500 mt-2">Acesse sua conta para gerenciar seus shows.</p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="space-y-2">
-            <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">E-mail</Label>
+            <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">E-mail</Label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
               <Input 
                 {...register('email')}
                 placeholder="seu@email.com" 
-                className="pl-10 h-12 bg-slate-50 border-none rounded-xl focus-visible:ring-indigo-500"
+                className="pl-10 h-12 bg-slate-50 border-none rounded-xl focus-visible:ring-[#2D1B69]"
               />
             </div>
             {errors.email && <p className="text-xs text-red-500 font-medium">{errors.email.message}</p>}
@@ -90,8 +83,8 @@ const Login = () => {
 
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-              <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Senha</Label>
-              <Link to="/forgot-password" title="Recuperar senha" className="text-xs font-bold text-indigo-600 hover:underline">Esqueceu a senha?</Link>
+              <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Senha</Label>
+              <Link to="/forgot-password" title="Recuperar senha" className="text-xs font-bold text-[#2D1B69] hover:underline">Esqueceu a senha?</Link>
             </div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
@@ -99,7 +92,7 @@ const Login = () => {
                 {...register('password')}
                 type="password" 
                 placeholder="••••••••" 
-                className="pl-10 h-12 bg-slate-50 border-none rounded-xl focus-visible:ring-indigo-500"
+                className="pl-10 h-12 bg-slate-50 border-none rounded-xl focus-visible:ring-[#2D1B69]"
               />
             </div>
             {errors.password && <p className="text-xs text-red-500 font-medium">{errors.password.message}</p>}
@@ -108,7 +101,7 @@ const Login = () => {
           <Button 
             type="submit" 
             disabled={isLoading}
-            className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-lg font-black rounded-2xl shadow-xl shadow-indigo-100 transition-all"
+            className="w-full h-14 bg-[#2D1B69] hover:bg-[#1a1040] text-white text-lg font-black rounded-2xl shadow-xl shadow-purple-100 transition-all"
           >
             {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (
               <>
@@ -121,7 +114,7 @@ const Login = () => {
 
         <div className="mt-8 text-center">
           <p className="text-sm text-slate-500">
-            Não tem uma conta? <Link to="/register" className="text-indigo-600 font-black hover:underline">Cadastre-se agora</Link>
+            Não tem uma conta? <Link to="/register" className="text-[#2D1B69] font-black hover:underline">Cadastre-se agora</Link>
           </p>
         </div>
       </Card>

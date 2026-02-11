@@ -52,16 +52,16 @@ const ClientDashboard = () => {
     setLoading(false);
   };
 
-  if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin text-blue-600 w-10 h-10" /></div>;
+  if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin text-[#2D1B69] w-10 h-10" /></div>;
 
   return (
-    <div className="p-8 space-y-8">
-      <div className="flex justify-between items-center">
+    <div className="p-4 md:p-8 space-y-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h1 className="text-3xl font-black text-slate-900">Meu Painel</h1>
+          <h1 className="text-3xl font-black text-[#2D1B69]">Meu Painel</h1>
           <p className="text-slate-500">Acompanhe seus eventos e contratações em tempo real.</p>
         </div>
-        <Button asChild className="bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-100">
+        <Button asChild className="bg-[#2D1B69] hover:bg-[#1a1040] text-white rounded-xl shadow-lg shadow-purple-100">
           <Link to="/app/discovery"><Search className="w-4 h-4 mr-2" /> Buscar Novos Artistas</Link>
         </Button>
       </div>
@@ -69,38 +69,38 @@ const ClientDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="p-6 border-none shadow-sm bg-white">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-50 rounded-xl"><DollarSign className="w-6 h-6 text-blue-600" /></div>
+            <div className="p-3 bg-purple-50 rounded-xl"><DollarSign className="w-6 h-6 text-[#2D1B69]" /></div>
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Investido</p>
-              <h3 className="text-2xl font-black text-slate-900">R$ {stats.totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
+              <h3 className="text-2xl font-black text-[#2D1B69]">R$ {stats.totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
             </div>
           </div>
         </Card>
         <Card className="p-6 border-none shadow-sm bg-white">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-emerald-50 rounded-xl"><CheckCircle2 className="w-6 h-6 text-emerald-600" /></div>
+            <div className="p-3 bg-amber-50 rounded-xl"><CheckCircle2 className="w-6 h-6 text-[#FFB703]" /></div>
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Eventos Confirmados</p>
-              <h3 className="text-2xl font-black text-slate-900">{stats.activeEvents}</h3>
+              <h3 className="text-2xl font-black text-[#2D1B69]">{stats.activeEvents}</h3>
             </div>
           </div>
         </Card>
         <Card className="p-6 border-none shadow-sm bg-white">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-amber-50 rounded-xl"><Clock className="w-6 h-6 text-amber-600" /></div>
+            <div className="p-3 bg-slate-50 rounded-xl"><Clock className="w-6 h-6 text-slate-400" /></div>
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Propostas Pendentes</p>
-              <h3 className="text-2xl font-black text-slate-900">{stats.pendingProposals}</h3>
+              <h3 className="text-2xl font-black text-[#2D1B69]">{stats.pendingProposals}</h3>
             </div>
           </div>
         </Card>
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-xl font-black text-slate-900">Acompanhamento de Eventos</h3>
+        <h3 className="text-xl font-black text-[#2D1B69]">Acompanhamento de Eventos</h3>
         <div className="grid gap-4">
           {relevantEvents.length === 0 ? (
-            <Card className="p-12 text-center text-slate-400 border-dashed border-2">
+            <Card className="p-12 text-center text-slate-400 border-dashed border-2 rounded-[2rem]">
               Nenhuma proposta ou evento ativo no momento.
             </Card>
           ) : (
@@ -115,14 +115,14 @@ const ClientDashboard = () => {
                     />
                   </div>
                   <div>
-                    <h4 className="font-bold text-slate-900">{event.event_name}</h4>
+                    <h4 className="font-bold text-[#2D1B69]">{event.event_name}</h4>
                     <p className="text-xs text-slate-500">{event.pro?.full_name} • {new Date(event.event_date).toLocaleDateString()}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-right hidden sm:block">
                     <p className="text-[10px] font-black text-slate-400 uppercase">Valor</p>
-                    <p className="text-sm font-bold text-blue-600">R$ {Number(event.value).toLocaleString('pt-BR')}</p>
+                    <p className="text-sm font-bold text-[#2D1B69]">R$ {Number(event.value).toLocaleString('pt-BR')}</p>
                   </div>
                   <Badge className={cn(
                     "uppercase text-[10px] font-black px-3 py-1 rounded-full",
@@ -131,7 +131,7 @@ const ClientDashboard = () => {
                   )}>
                     {event.status}
                   </Badge>
-                  <Button variant="ghost" size="icon" asChild className="rounded-full hover:bg-blue-50 hover:text-blue-600">
+                  <Button variant="ghost" size="icon" asChild className="rounded-full hover:bg-purple-50 hover:text-[#2D1B69]">
                     <Link to={`/app/contracts/${event.id}`}><ArrowRight className="w-4 h-4" /></Link>
                   </Button>
                 </div>
