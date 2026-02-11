@@ -19,13 +19,21 @@ const ProDashboard = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Busca perfil real
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-      const { data: contracts } = await supabase.from('contracts').select('valor_atual, status').eq('profissional_profile_id', user.id);
+      
+      // Busca contratos reais para calcular ganhos
+      const { data: contracts } = await supabase
+        .from('contracts')
+        .select('valor_atual, status')
+        .eq('profissional_profile_id', user.id);
 
-      const totalEarnings = contracts?.filter(c => c.status === 'PAGO' || c.status === 'COMPLETED')
+      // Ganhos: Apenas contratos pagos ou concluídos
+      const totalEarnings = contracts?.filter(c => ['PAGO', 'COMPLETED', 'PAID'].includes(c.status))
         .reduce((acc, curr) => acc + Number(curr.valor_atual), 0) || 0;
 
-      const upcomingShows = contracts?.filter(c => c.status === 'PAGO').length || 0;
+      // Shows Confirmados: Contratos assinados ou pagos que ainda não foram concluídos
+      const upcomingShows = contracts?.filter(c => ['ASSINADO', 'PAGO', 'SIGNED', 'PAID'].includes(c.status)).length || 0;
 
       setStats({
         profile,
@@ -33,7 +41,7 @@ const ProDashboard = () => {
         upcomingShows
       });
     } catch (error) {
-      console.error(error);
+      console.error("[ProDashboard] Error:", error);
     } finally {
       setLoading(false);
     }
@@ -45,20 +53,20 @@ const ProDashboard = () => {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h1 className="text-3xl font-black text-[#2D1B69]">Olá, {stats.profile.full_name}! 👋</h1>
-          <p className="text-slate-500 mt-1">Seu resumo financeiro e de agenda.</p>
+          <h1 className="text-3xl font-black text-[#2D1B69]">Olá, {stats.profile?.full_name || 'Artista'}! 👋</h1>
+          <p className="text-slate-500 mt-1">Seu resumo financeiro e de agenda em tempo real.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {stats.profile.is_superstar && <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-full text-xs font-black border border-amber-100"><Award className="w-3 h-3" /> Superstar</div>}
-          {stats.profile.is_verified && <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-xs font-black border border-blue-100"><Star className="w-3 h-3 fill-current" /> Verificado</div>}
+          {stats.profile?.is_superstar && <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-full text-xs font-black border border-amber-100"><Award className="w-3 h-3" /> Superstar</div>}
+          {stats.profile?.is_verified && <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-xs font-black border border-blue-100"><Star className="w-3 h-3 fill-current" /> Verificado</div>}
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Ganhos Totais" value={`R$ ${stats.totalEarnings.toLocaleString('pt-BR')}`} icon={DollarSign} color="emerald" />
+        <StatCard title="Ganhos Totais" value={`R$ ${stats.totalEarnings.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} icon={DollarSign} color="emerald" />
         <StatCard title="Shows Confirmados" value={`${stats.upcomingShows} Eventos`} icon={Calendar} color="indigo" />
-        <StatCard title="Avaliação" value={`${stats.profile.rating} / 5.0`} icon={Star} color="amber" />
-        <StatCard title="Pontos XP" value={`${stats.profile.xp_total} pts`} icon={TrendingUp} color="purple" />
+        <StatCard title="Avaliação" value={`${stats.profile?.rating || '5.0'} / 5.0`} icon={Star} color="amber" />
+        <StatCard title="Pontos XP" value={`${stats.profile?.xp_total || 0} pts`} icon={TrendingUp} color="purple" />
       </div>
     </div>
   );

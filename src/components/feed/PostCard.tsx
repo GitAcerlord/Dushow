@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { 
   Heart, MessageSquare, Share2, MoreHorizontal, Edit2, Trash2, 
-  Star, Crown, MapPin, Tag as TagIcon, ExternalLink
+  Star, Crown, ExternalLink
 } from "lucide-react";
 import { 
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger 
@@ -47,6 +47,7 @@ const PostCard = ({ post, currentUserId, onDelete, onEdit }: PostCardProps) => {
   };
 
   const toggleLike = async () => {
+    if (!currentUserId) return navigate('/login');
     if (isLiked) {
       await supabase.from('post_likes').delete().eq('post_id', post.id).eq('user_id', currentUserId);
       setLikesCount(prev => prev - 1);
@@ -59,21 +60,22 @@ const PostCard = ({ post, currentUserId, onDelete, onEdit }: PostCardProps) => {
   };
 
   const handleViewProfile = () => {
-    navigate(`/client/artist/${post.author_id}`);
+    // Redireciona para o perfil do artista (público ou dentro do app)
+    navigate(`/app/artist/${post.author_id}`);
   };
 
   return (
     <Card className="border-none shadow-sm bg-white overflow-hidden rounded-[2rem] hover:shadow-md transition-all">
       <div className="p-5 flex items-center justify-between">
         <div className="flex items-center gap-3 cursor-pointer group" onClick={handleViewProfile}>
-          <Avatar className="w-10 h-10 border-2 border-slate-50 group-hover:border-indigo-200 transition-colors">
+          <Avatar className="w-10 h-10 border-2 border-slate-50 group-hover:border-[#2D1B69] transition-colors">
             <AvatarImage src={getSafeImageUrl(post.profiles?.avatar_url, '')} />
             <AvatarFallback>{post.profiles?.full_name?.[0]}</AvatarFallback>
           </Avatar>
           <div>
             <div className="flex items-center gap-2">
-              <h4 className="font-black text-sm text-slate-900 group-hover:text-indigo-600 transition-colors">{post.profiles?.full_name}</h4>
-              {post.profiles?.is_superstar && <Crown className="w-3 h-3 text-amber-500" />}
+              <h4 className="font-black text-sm text-[#2D1B69] group-hover:text-[#FFB703] transition-colors">{post.profiles?.full_name}</h4>
+              {post.profiles?.is_superstar && <Crown className="w-3 h-3 text-[#FFB703]" />}
               {post.profiles?.is_verified && <Star className="w-3 h-3 text-blue-500 fill-current" />}
             </div>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
@@ -83,7 +85,7 @@ const PostCard = ({ post, currentUserId, onDelete, onEdit }: PostCardProps) => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-indigo-600" onClick={handleViewProfile}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-[#2D1B69]" onClick={handleViewProfile}>
             <ExternalLink className="w-4 h-4" />
           </Button>
           {currentUserId === post.author_id && (
@@ -92,8 +94,8 @@ const PostCard = ({ post, currentUserId, onDelete, onEdit }: PostCardProps) => {
                 <Button variant="ghost" size="icon" className="text-slate-400"><MoreHorizontal className="w-4 h-4" /></Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="rounded-xl">
-                <DropdownMenuItem onClick={() => onEdit(post)} className="gap-2"><Edit2 className="w-4 h-4" /> Editar</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onDelete(post.id)} className="text-red-600 gap-2"><Trash2 className="w-4 h-4" /> Excluir</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onEdit(post)} className="gap-2 cursor-pointer"><Edit2 className="w-4 h-4" /> Editar</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onDelete(post.id)} className="text-red-600 gap-2 cursor-pointer"><Trash2 className="w-4 h-4" /> Excluir</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -103,16 +105,6 @@ const PostCard = ({ post, currentUserId, onDelete, onEdit }: PostCardProps) => {
       <div className="px-5 pb-4 space-y-4">
         <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
         
-        {post.tags && post.tags.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {post.tags.map((tag: string) => (
-              <Badge key={tag} variant="secondary" className="text-[10px] font-bold bg-slate-100 text-slate-500 border-none">
-                #{tag}
-              </Badge>
-            ))}
-          </div>
-        )}
-
         {post.image_url && (
           <div className="rounded-2xl overflow-hidden border border-slate-100 shadow-inner">
             <img src={getSafeImageUrl(post.image_url, '')} alt="Post" className="w-full h-auto max-h-[500px] object-cover" />
@@ -133,13 +125,13 @@ const PostCard = ({ post, currentUserId, onDelete, onEdit }: PostCardProps) => {
             </button>
             <button 
               onClick={() => setShowComments(!showComments)}
-              className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-indigo-600 transition-colors"
+              className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-[#2D1B69] transition-colors"
             >
               <MessageSquare className="w-4 h-4" />
               {commentsCount}
             </button>
           </div>
-          <button className="text-slate-400 hover:text-indigo-600"><Share2 className="w-4 h-4" /></button>
+          <button className="text-slate-400 hover:text-[#2D1B69]"><Share2 className="w-4 h-4" /></button>
         </div>
 
         {showComments && <CommentSection postId={post.id} currentUserId={currentUserId} />}
