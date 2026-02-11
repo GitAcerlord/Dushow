@@ -31,10 +31,27 @@ serve(async (req) => {
 
     const { targetUserId, updates } = await req.json()
 
+    const timestampFields = new Set([
+      'blocked_until',
+      'suspended_until',
+      'deleted_at',
+      'updated_at',
+      'created_at',
+    ])
+
+    const sanitizedUpdates = Object.entries(updates || {}).reduce((acc, [key, value]) => {
+      if (timestampFields.has(key) && value === '') {
+        acc[key] = null
+      } else {
+        acc[key] = value
+      }
+      return acc
+    }, {} as Record<string, unknown>)
+
     // SECURITY FIX: Use service_role client to bypass tr_protect_profile_fields trigger
     const { data, error } = await supabaseClient
       .from('profiles')
-      .update(updates)
+      .update(sanitizedUpdates)
       .eq('id', targetUserId)
       .select()
       .single();

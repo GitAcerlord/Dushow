@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   Calendar, MapPin, DollarSign, CheckCircle2, XCircle, Clock, Loader2, FileText
 } from "lucide-react";
@@ -93,7 +94,16 @@ const ProContracts = () => {
             <Card key={contract.id} className="p-6 border-none shadow-sm bg-white flex flex-col md:flex-row gap-6 items-start md:items-center rounded-[2rem]">
               <div className="flex-1 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-slate-900">{contract.event_name}</h3>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Avatar className="w-10 h-10 border border-slate-100">
+                      <AvatarImage src={contract.profiles?.avatar_url} />
+                      <AvatarFallback>{contract.profiles?.full_name?.[0] || 'C'}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <h3 className="text-xl font-bold text-slate-900 truncate">{contract.event_name}</h3>
+                      <p className="text-xs text-slate-500 font-medium truncate">{contract.profiles?.full_name || 'Contratante não informado'}</p>
+                    </div>
+                  </div>
                   <Badge className={cn(
                     "uppercase text-[10px] font-bold px-3 py-1 rounded-full",
                     contract.status === 'COMPLETED' ? 'bg-emerald-500 text-white' : 
