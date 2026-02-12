@@ -28,6 +28,7 @@ const ProMessages = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Busca contratos onde sou o profissional para listar meus clientes
       const { data: contracts, error } = await supabase
         .from('contracts')
         .select(`
@@ -62,6 +63,7 @@ const ProMessages = () => {
       </div>
 
       <div className="flex-1 flex gap-6 overflow-hidden">
+        {/* Listagem de Conversas */}
         <Card className={cn(
           "w-full lg:w-80 border-none shadow-xl bg-white overflow-hidden flex flex-col rounded-[2.5rem]",
           !showList && "hidden lg:flex"
@@ -84,34 +86,31 @@ const ProMessages = () => {
                 <p className="text-[10px] font-bold uppercase">Nenhuma conversa</p>
               </div>
             ) : (
-              filteredConversations.map((conv) => {
-                const contactPhoto = getSafeImageUrl(conv.client?.avatar_url, `https://api.dicebear.com/7.x/avataaars/svg?seed=${conv.client?.full_name}`);
-                
-                return (
-                  <div 
-                    key={conv.id} 
-                    onClick={() => { setSelectedConv(conv); setShowList(false); }}
-                    className={cn(
-                      "p-5 flex items-center gap-4 cursor-pointer transition-all border-l-4",
-                      selectedConv?.id === conv.id ? 'bg-indigo-50 border-[#2D1B69]' : 'border-transparent hover:bg-slate-50'
-                    )}
-                  >
-                    <Avatar className="w-12 h-12 border-2 border-white shadow-sm">
-                      <AvatarImage src={contactPhoto} />
-                      <AvatarFallback>{conv.client?.full_name?.[0]}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-black text-[#2D1B69] truncate">{conv.client?.full_name}</h4>
-                      <p className="text-[10px] text-slate-400 font-bold truncate uppercase">{conv.event_name}</p>
-                      <Badge variant="outline" className="mt-1 text-[8px] border-indigo-100 text-[#2D1B69] h-4">{conv.status}</Badge>
-                    </div>
+              filteredConversations.map((conv) => (
+                <div 
+                  key={conv.id} 
+                  onClick={() => { setSelectedConv(conv); setShowList(false); }}
+                  className={cn(
+                    "p-5 flex items-center gap-4 cursor-pointer transition-all border-l-4",
+                    selectedConv?.id === conv.id ? 'bg-indigo-50 border-[#2D1B69]' : 'border-transparent hover:bg-slate-50'
+                  )}
+                >
+                  <Avatar className="w-12 h-12 border-2 border-white shadow-sm">
+                    <AvatarImage src={getSafeImageUrl(conv.client?.avatar_url, `https://api.dicebear.com/7.x/avataaars/svg?seed=${conv.client?.full_name}`)} />
+                    <AvatarFallback>{conv.client?.full_name?.[0]}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-black text-[#2D1B69] truncate">{conv.client?.full_name}</h4>
+                    <p className="text-[10px] text-slate-400 font-bold truncate uppercase">{conv.event_name}</p>
+                    <Badge variant="outline" className="mt-1 text-[8px] border-indigo-100 text-[#2D1B69] h-4">{conv.status}</Badge>
                   </div>
-                );
-              })
+                </div>
+              ))
             )}
           </div>
         </Card>
 
+        {/* Janela de Chat */}
         <div className={cn(
           "flex-1 h-full",
           showList && "hidden lg:block"

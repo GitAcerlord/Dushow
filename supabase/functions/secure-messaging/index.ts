@@ -24,14 +24,32 @@ serve(async (req) => {
     const { receiverId, content, contractId } = await req.json()
     const senderId = user.id
 
-    // REGRA DE NEGÓCIO: Bloquear qualquer caractere numérico (0-9)
-    if (/[0-9]/.test(content)) {
-      return new Response(JSON.stringify({ 
-        error: "Não é permitido enviar números nas mensagens por motivos de segurança." 
-      }), { 
-        status: 400, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      })
+    // 1. Verificar status do contrato
+    const { data: contract } = await supabaseClient
+      .from('contracts')
+      .select('status')
+      .eq('id', contractId)
+      .single()
+
+    // Status que permitem troca de contato
+    const isSafeStatus = ['ACEITO', 'PAGO', 'COMPLETED', 'ACCEPTED', 'PAID', 'SIGNED', 'ASSINADO'].includes(contract?.status);
+    
+    let finalContent = content;
+    let isBlocked = false;
+    let reason = "";
+
+    // 2. Filtro Anti-Bypass (Bloqueio de números)
+    if (!isSafeStatus) {
+      // Detecta sequências de 8 ou mais números (com ou sem espaços/traços)
+      const phoneRegex = /(\d[\s-]*){8,}/;
+      const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+      
+      if (phoneRegex.test(content) || emailRegex.test(content)) {
+        isBlocked = true;
+        reason = "Bloqueio de segurança: Compartilhamento de contatos não permitido nesta fase.";
+        // Ofusca números e e-mails
+        finalContent = content.replace(/[0-9]/g, '*').replace(/@/g, '[at]');
+      }
     }
 
     const { data, error } = await supabaseClient
@@ -40,8 +58,10 @@ serve(async (req) => {
         sender_id: senderId,
         receiver_id: receiverId,
         contract_id: contractId,
-        content: content,
-        is_blocked: false
+        content: finalContent,
+        is_blocked: isBlocked,
+        block_reason: reason,
+        original_content_hidden: isBlocked ? content : null
       })
       .select()
       .single()
@@ -56,7 +76,7 @@ serve(async (req) => {
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: corsHeaders
     })
   }
 })
