@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
@@ -31,7 +32,7 @@ serve(async (req) => {
       .eq('id', contractId)
       .single()
 
-    const isAccepted = contract?.status === 'ACCEPTED' || contract?.status === 'PAID' || contract?.status === 'COMPLETED';
+    const isAccepted = contract?.status === 'ACEITO' || contract?.status === 'PAGO' || contract?.status === 'COMPLETED' || contract?.status === 'ACCEPTED' || contract?.status === 'PAID';
     
     let finalContent = content;
     let isBlocked = false;
@@ -39,13 +40,13 @@ serve(async (req) => {
 
     // 2. Filtro Anti-Bypass (Apenas se não estiver aceito)
     if (!isAccepted) {
-      // Bloqueia qualquer sequência de números (0-9)
-      const hasNumbers = /[0-9]/.test(content);
+      // Bloqueia qualquer sequência de números (0-9) que possa ser telefone/pix
+      const hasNumbers = /[0-9]{4,}/.test(content.replace(/\s/g, ''));
       
       if (hasNumbers) {
         isBlocked = true;
-        reason = "Compartilhamento de números não permitido antes do aceite do contrato.";
-        finalContent = content.replace(/[0-9]/g, ' [BLOQUEADO] ');
+        reason = "Compartilhamento de contatos não permitido antes do aceite.";
+        finalContent = content.replace(/[0-9]/g, '*');
       }
     }
 
