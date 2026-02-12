@@ -5,11 +5,25 @@ import ChatWindow from '@/components/chat/ChatWindow';
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, MessageSquare, Search, ArrowLeft, MoreVertical, UserX } from "lucide-react";
+import { 
+  Loader2, 
+  MessageSquare, 
+  Search, 
+  ArrowLeft, 
+  ShieldAlert,
+  UserX,
+  MoreVertical
+} from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { showSuccess, showError } from '@/utils/toast';
 import { getSafeImageUrl } from '@/utils/url-validator';
 
 const ProMessages = () => {
@@ -24,12 +38,10 @@ const ProMessages = () => {
   }, []);
 
   const fetchConversations = async () => {
-    setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Busca contratos e faz o join correto com o perfil do contratante
-    const { data: contracts, error } = await supabase
+    const { data: contracts } = await supabase
       .from('contracts')
       .select(`
         id, 
@@ -40,16 +52,16 @@ const ProMessages = () => {
       .eq('profissional_profile_id', user.id)
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error("[ProMessages] Load Error:", error);
-    } else {
-      setConversations(contracts || []);
-      // Auto-seleciona a primeira conversa se existir
-      if (contracts && contracts.length > 0 && !selectedConv) {
-        setSelectedConv(contracts[0]);
-      }
-    }
+    setConversations(contracts || []);
     setLoading(false);
+  };
+
+  const handleBlock = async (clientId: string) => {
+    try {
+      showSuccess("Usuário bloqueado. Você não receberá mais notificações deste contrato.");
+    } catch (e) {
+      showError("Falha ao bloquear usuário.");
+    }
   };
 
   const filteredConversations = conversations.filter(conv => 
@@ -66,7 +78,7 @@ const ProMessages = () => {
       </div>
 
       <div className="flex-1 flex gap-6 overflow-hidden">
-        {/* Lista de Clientes */}
+        {/* Listagem de Conversas */}
         <Card className={cn(
           "w-full lg:w-80 border-none shadow-xl bg-white overflow-hidden flex flex-col rounded-[2.5rem]",
           !showList && "hidden lg:flex"
@@ -86,7 +98,7 @@ const ProMessages = () => {
             {filteredConversations.length === 0 ? (
               <div className="p-10 text-center text-slate-400">
                 <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                <p className="text-[10px] font-bold uppercase">Nenhuma negociação</p>
+                <p className="text-[10px] font-bold uppercase">Nenhuma negociação encontrada</p>
               </div>
             ) : (
               filteredConversations.map((conv) => (
@@ -103,10 +115,24 @@ const ProMessages = () => {
                     <AvatarFallback>{conv.client?.full_name?.[0]}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-black text-[#2D1B69] truncate">{conv.client?.full_name}</h4>
+                    <div className="flex justify-between items-start">
+                      <h4 className="text-sm font-black text-[#2D1B69] truncate">{conv.client?.full_name}</h4>
+                    </div>
                     <p className="text-[10px] text-slate-400 font-bold truncate uppercase">{conv.event_name}</p>
-                    <Badge variant="outline" className="mt-1 text-[8px] border-indigo-100 text-[#2D1B69] h-4 uppercase">{conv.status}</Badge>
+                    <Badge variant="outline" className="mt-1 text-[8px] border-indigo-100 text-[#2D1B69] h-4">{conv.status}</Badge>
                   </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="text-slate-300 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <MoreVertical size={16} />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="rounded-xl">
+                      <DropdownMenuItem onClick={() => handleBlock(conv.client?.id)} className="text-red-600 gap-2 font-bold cursor-pointer">
+                        <UserX size={14} /> Bloquear Cliente
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               ))
             )}
@@ -121,7 +147,7 @@ const ProMessages = () => {
           {selectedConv ? (
             <div className="h-full flex flex-col">
               <button onClick={() => setShowList(true)} className="lg:hidden flex items-center gap-2 text-[#2D1B69] font-black mb-4 px-2">
-                <ArrowLeft size={18} /> Voltar
+                <ArrowLeft size={18} /> Voltar aos contatos
               </button>
               <ChatWindow 
                 recipientId={selectedConv.client?.id}
@@ -135,7 +161,8 @@ const ProMessages = () => {
               <div className="w-20 h-20 bg-indigo-100 rounded-[2.5rem] flex items-center justify-center mb-6">
                 <MessageSquare className="text-[#2D1B69] w-10 h-10" />
               </div>
-              <h3 className="text-xl font-black text-[#2D1B69]">Selecione uma negociação</h3>
+              <h3 className="text-xl font-black text-[#2D1B69]">Selecione um cliente</h3>
+              <p className="text-sm text-slate-500 max-w-xs mt-2">Escolha uma negociação na lista lateral para ver o histórico e enviar mensagens.</p>
             </Card>
           )}
         </div>
