@@ -4,10 +4,27 @@ import React, { useState, useEffect } from 'react';
 import ChatWindow from '@/components/chat/ChatWindow';
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, MessageSquare, Calendar, Search, ArrowLeft } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Loader2, 
+  MessageSquare, 
+  Search, 
+  ArrowLeft, 
+  ShieldAlert,
+  UserX,
+  MoreVertical
+} from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { showSuccess, showError } from '@/utils/toast';
+import { getSafeImageUrl } from '@/utils/url-validator';
 
 const ProMessages = () => {
   const [conversations, setConversations] = useState<any[]>([]);
@@ -24,7 +41,6 @@ const ProMessages = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Corrigido o join para usar a FK correta: contratante_profile_id
     const { data: contracts } = await supabase
       .from('contracts')
       .select(`
@@ -40,21 +56,29 @@ const ProMessages = () => {
     setLoading(false);
   };
 
-  const handleSelect = (conv: any) => {
-    setSelectedConv(conv);
-    setShowList(false);
+  const handleBlock = async (clientId: string) => {
+    try {
+      showSuccess("Usuário bloqueado. Você não receberá mais notificações deste contrato.");
+    } catch (e) {
+      showError("Falha ao bloquear usuário.");
+    }
   };
 
-  if (loading) return <div className="p-20 flex justify-center"><Loader2 className="animate-spin text-[#2D1B69]" /></div>;
+  const filteredConversations = conversations.filter(conv => 
+    conv.client?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    conv.event_name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (loading) return <div className="p-20 flex justify-center"><Loader2 className="animate-spin text-[#2D1B69] w-10 h-10" /></div>;
 
   return (
     <div className="h-[calc(100vh-140px)] flex flex-col gap-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-black text-[#2D1B69]">Mensagens</h1>
+        <h1 className="text-3xl font-black text-[#2D1B69]">Minhas Mensagens</h1>
       </div>
 
       <div className="flex-1 flex gap-6 overflow-hidden">
-        {/* List Area */}
+        {/* Listagem de Conversas */}
         <Card className={cn(
           "w-full lg:w-80 border-none shadow-xl bg-white overflow-hidden flex flex-col rounded-[2.5rem]",
           !showList && "hidden lg:flex"
@@ -63,45 +87,67 @@ const ProMessages = () => {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
               <Input 
-                placeholder="Buscar..." 
-                className="pl-10 bg-slate-50 border-none rounded-xl h-10 text-sm"
+                placeholder="Buscar por cliente..." 
+                className="pl-10 bg-slate-50 border-none rounded-xl h-10 text-sm focus-visible:ring-[#2D1B69]"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
-            {conversations.map((conv) => (
-              <div 
-                key={conv.id} 
-                onClick={() => handleSelect(conv)}
-                className={cn(
-                  "p-5 flex items-center gap-4 cursor-pointer transition-all border-l-4",
-                  selectedConv?.id === conv.id ? 'bg-indigo-50 border-[#2D1B69]' : 'border-transparent hover:bg-slate-50'
-                )}
-              >
-                <Avatar className="w-10 h-10">
-                  <AvatarImage src={conv.client?.avatar_url} />
-                  <AvatarFallback>{conv.client?.full_name?.[0]}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-black text-[#2D1B69] truncate">{conv.client?.full_name}</h4>
-                  <p className="text-[10px] text-slate-400 truncate">{conv.event_name}</p>
-                </div>
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
+            {filteredConversations.length === 0 ? (
+              <div className="p-10 text-center text-slate-400">
+                <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                <p className="text-[10px] font-bold uppercase">Nenhuma negociação encontrada</p>
               </div>
-            ))}
+            ) : (
+              filteredConversations.map((conv) => (
+                <div 
+                  key={conv.id} 
+                  onClick={() => { setSelectedConv(conv); setShowList(false); }}
+                  className={cn(
+                    "p-5 flex items-center gap-4 cursor-pointer transition-all border-l-4 group",
+                    selectedConv?.id === conv.id ? 'bg-indigo-50 border-[#2D1B69]' : 'border-transparent hover:bg-slate-50'
+                  )}
+                >
+                  <Avatar className="w-12 h-12 border-2 border-white shadow-sm">
+                    <AvatarImage src={getSafeImageUrl(conv.client?.avatar_url, `https://api.dicebear.com/7.x/avataaars/svg?seed=${conv.client?.full_name}`)} />
+                    <AvatarFallback>{conv.client?.full_name?.[0]}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start">
+                      <h4 className="text-sm font-black text-[#2D1B69] truncate">{conv.client?.full_name}</h4>
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-bold truncate uppercase">{conv.event_name}</p>
+                    <Badge variant="outline" className="mt-1 text-[8px] border-indigo-100 text-[#2D1B69] h-4">{conv.status}</Badge>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="text-slate-300 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <MoreVertical size={16} />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="rounded-xl">
+                      <DropdownMenuItem onClick={() => handleBlock(conv.client?.id)} className="text-red-600 gap-2 font-bold cursor-pointer">
+                        <UserX size={14} /> Bloquear Cliente
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ))
+            )}
           </div>
         </Card>
 
-        {/* Chat Area */}
+        {/* Janela de Chat */}
         <div className={cn(
           "flex-1 h-full",
           showList && "hidden lg:block"
         )}>
           {selectedConv ? (
             <div className="h-full flex flex-col">
-              <button onClick={() => setShowList(true)} className="lg:hidden flex items-center gap-2 text-[#2D1B69] font-black mb-4">
-                <ArrowLeft size={20} /> Voltar para lista
+              <button onClick={() => setShowList(true)} className="lg:hidden flex items-center gap-2 text-[#2D1B69] font-black mb-4 px-2">
+                <ArrowLeft size={18} /> Voltar aos contatos
               </button>
               <ChatWindow 
                 recipientId={selectedConv.client?.id}
@@ -112,8 +158,11 @@ const ProMessages = () => {
             </div>
           ) : (
             <Card className="h-full flex flex-col items-center justify-center bg-slate-50 border-none rounded-[2.5rem] text-center p-10">
-              <MessageSquare className="text-indigo-200 w-16 h-16 mb-4" />
-              <h3 className="text-xl font-black text-[#2D1B69]">Selecione uma conversa</h3>
+              <div className="w-20 h-20 bg-indigo-100 rounded-[2.5rem] flex items-center justify-center mb-6">
+                <MessageSquare className="text-[#2D1B69] w-10 h-10" />
+              </div>
+              <h3 className="text-xl font-black text-[#2D1B69]">Selecione um cliente</h3>
+              <p className="text-sm text-slate-500 max-w-xs mt-2">Escolha uma negociação na lista lateral para ver o histórico e enviar mensagens.</p>
             </Card>
           )}
         </div>

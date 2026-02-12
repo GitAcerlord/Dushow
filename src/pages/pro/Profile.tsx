@@ -8,7 +8,22 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { 
-  Star, MapPin, Edit3, Camera, Save, X, Loader2, Wallet, DollarSign, ShieldCheck
+  Star, 
+  MapPin, 
+  Edit3, 
+  Camera, 
+  Save, 
+  X, 
+  Loader2, 
+  Wallet, 
+  DollarSign, 
+  ShieldCheck,
+  Layout,
+  Upload,
+  FileText,
+  Image as ImageIcon,
+  ExternalLink,
+  Trash2
 } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
@@ -22,6 +37,7 @@ const ProProfile = () => {
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState<any>({});
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const portfolioInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchProfile();
@@ -47,30 +63,55 @@ const ProProfile = () => {
       const fileName = `${profile.id}-${Math.random()}.${fileExt}`;
       const filePath = `avatars/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
-
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
 
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('id', profile.id);
-
+      const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', profile.id);
       if (updateError) throw updateError;
 
       setFormData({ ...formData, avatar_url: publicUrl });
       setProfile({ ...profile, avatar_url: publicUrl });
-      showSuccess("Foto de perfil atualizada!");
-    } catch (error: any) {
-      showError("Erro no upload: " + error.message);
+      showSuccess("Avatar atualizado!");
+    } catch (e: any) {
+      showError("Erro no upload do avatar.");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handlePortfolioUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      setUploading(true);
+      const fileName = `${profile.id}/portfolio/${Math.random()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage.from('portfolios').upload(fileName, file);
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('portfolios').getPublicUrl(fileName);
+      
+      const newPortfolio = [...(profile.portfolio_urls || []), publicUrl];
+      const { error: updateError } = await supabase.from('profiles').update({ portfolio_urls: newPortfolio }).eq('id', profile.id);
+      if (updateError) throw updateError;
+
+      setProfile({ ...profile, portfolio_urls: newPortfolio });
+      showSuccess("Item adicionado ao portfólio!");
+    } catch (e: any) {
+      showError("Erro no upload do portfólio.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removePortfolioItem = async (url: string) => {
+    const newPortfolio = profile.portfolio_urls.filter((item: string) => item !== url);
+    const { error } = await supabase.from('profiles').update({ portfolio_urls: newPortfolio }).eq('id', profile.id);
+    if (!error) {
+      setProfile({ ...profile, portfolio_urls: newPortfolio });
+      showSuccess("Item removido.");
     }
   };
 
@@ -85,25 +126,24 @@ const ProProfile = () => {
       }).eq('id', profile.id);
 
       if (error) throw error;
-      
       setProfile(formData);
       setIsEditing(false);
-      showSuccess("Perfil atualizado com sucesso!");
-    } catch (error: any) {
-      showError(error.message);
+      showSuccess("Perfil salvo!");
+    } catch (e: any) {
+      showError("Erro ao salvar dados.");
     }
   };
 
-  if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin text-indigo-600 w-10 h-10" /></div>;
+  if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin text-[#2D1B69] w-10 h-10" /></div>;
 
   return (
-    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-10">
+      {/* Bio Header Card */}
       <Card className="p-8 border-none shadow-2xl bg-white rounded-[2.5rem]">
         <div className="flex flex-col md:flex-row gap-10 items-start">
           <div className="relative shrink-0 group">
             <div className="w-40 h-40 rounded-[2rem] overflow-hidden border-4 border-white shadow-2xl bg-slate-100 relative">
-              {uploading && <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10"><Loader2 className="animate-spin text-white" /></div>}
-              <img src={getSafeImageUrl(formData.avatar_url, '')} className="w-full h-full object-cover" alt="Avatar" />
+              <img src={getSafeImageUrl(formData.avatar_url, `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.full_name}`)} className="w-full h-full object-cover" alt="Avatar" />
               <button onClick={() => avatarInputRef.current?.click()} className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-xs font-bold gap-2">
                 <Camera className="w-6 h-6" /> Alterar Foto
               </button>
@@ -127,10 +167,10 @@ const ProProfile = () => {
                   </div>
                 ) : (
                   <>
-                    <h1 className="text-4xl font-black text-slate-900">{profile.full_name}</h1>
+                    <h1 className="text-4xl font-black text-[#2D1B69]">{profile.full_name}</h1>
                     <div className="flex flex-wrap gap-2">
                       <Badge className="bg-blue-50 text-blue-600 border-none px-3 py-1 font-bold flex items-center gap-1">
-                        <DollarSign className="w-3 h-3" /> Cachê: R$ {Number(profile.base_fee).toLocaleString('pt-BR')}
+                        <DollarSign className="w-3 h-3" /> Cachê: R$ {Number(profile.base_fee || 0).toLocaleString('pt-BR')}
                       </Badge>
                       {profile.is_verified && <Badge className="bg-emerald-50 text-emerald-600 border-none px-3 py-1 font-bold flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Verificado</Badge>}
                     </div>
@@ -139,18 +179,15 @@ const ProProfile = () => {
               </div>
               <div className="flex gap-2">
                 {isEditing ? (
-                  <Button onClick={handleSave} className="bg-indigo-600 rounded-xl shadow-lg"><Save className="w-4 h-4 mr-2" /> Salvar</Button>
+                  <Button onClick={handleSave} className="bg-[#2D1B69] rounded-xl shadow-lg"><Save className="w-4 h-4 mr-2" /> Salvar</Button>
                 ) : (
-                  <Button onClick={() => setIsEditing(true)} variant="outline" className="rounded-xl"><Edit3 className="w-4 h-4 mr-2" /> Editar Perfil</Button>
+                  <Button onClick={() => setIsEditing(true)} variant="outline" className="rounded-xl border-slate-200 font-bold"><Edit3 className="w-4 h-4 mr-2" /> Editar Bio</Button>
                 )}
               </div>
             </div>
             
             {isEditing ? (
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase text-slate-400">Biografia Profissional</Label>
-                <Textarea value={formData.bio} onChange={(e) => setFormData({...formData, bio: e.target.value})} className="min-h-[120px] bg-slate-50 border-none rounded-2xl" placeholder="Conte sua trajetória artística..." />
-              </div>
+              <Textarea value={formData.bio} onChange={(e) => setFormData({...formData, bio: e.target.value})} className="min-h-[120px] bg-slate-50 border-none rounded-2xl" placeholder="Sua trajetória artística..." />
             ) : (
               <p className="text-slate-600 leading-relaxed font-medium">{profile.bio || "Nenhuma biografia adicionada."}</p>
             )}
@@ -158,31 +195,87 @@ const ProProfile = () => {
         </div>
       </Card>
 
+      {/* Portfólio & Apresentação */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-2 p-8 border-none shadow-xl bg-white rounded-[2.5rem]">
-          <h3 className="text-xl font-black text-slate-900 mb-6">Categorias de Atuação</h3>
-          <CategorySelector profileId={profile.id} />
+        <Card className="lg:col-span-2 p-8 border-none shadow-xl bg-white rounded-[2.5rem] space-y-8">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-black text-[#2D1B69] flex items-center gap-2">
+              <Layout className="text-[#FFB703]" /> Portfólio & Materiais
+            </h3>
+            <div className="flex gap-2">
+              <input type="file" ref={portfolioInputRef} className="hidden" accept="image/*,application/pdf" onChange={handlePortfolioUpload} />
+              <Button onClick={() => portfolioInputRef.current?.click()} className="bg-[#2D1B69] rounded-xl gap-2">
+                {uploading ? <Loader2 className="animate-spin" /> : <Upload className="w-4 h-4" />} Adicionar Item
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {profile.portfolio_urls?.map((url: string, i: number) => {
+              const isPdf = url.toLowerCase().endsWith('.pdf');
+              return (
+                <div key={i} className="group relative aspect-square rounded-[2rem] overflow-hidden border-2 border-slate-50 bg-slate-50 shadow-inner">
+                  {isPdf ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-4 text-center">
+                      <FileText className="w-12 h-12 text-blue-500" />
+                      <span className="text-[10px] font-black uppercase text-slate-500">Documento PDF</span>
+                    </div>
+                  ) : (
+                    <img src={url} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                  )}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <Button size="icon" variant="ghost" className="text-white hover:bg-white/20" asChild>
+                      <a href={url} target="_blank" rel="noreferrer"><ExternalLink size={20} /></a>
+                    </Button>
+                    <Button size="icon" variant="ghost" className="text-red-400 hover:bg-red-400/20" onClick={() => removePortfolioItem(url)}>
+                      <Trash2 size={20} />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+            {(!profile.portfolio_urls || profile.portfolio_urls.length === 0) && (
+              <div className="col-span-full py-10 text-center text-slate-400 border-2 border-dashed border-slate-100 rounded-[2.5rem]">
+                <ImageIcon className="mx-auto mb-2 opacity-20" size={40} />
+                <p className="text-xs font-medium">Faça upload de fotos ou PDFs de apresentação.</p>
+              </div>
+            )}
+          </div>
         </Card>
 
-        <Card className="p-8 border-none shadow-xl bg-slate-900 text-white rounded-[2.5rem] space-y-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-600 rounded-lg"><Wallet className="w-5 h-5" /></div>
-            <h3 className="font-black">Dados Financeiros</h3>
-          </div>
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <Label className="text-[10px] font-black uppercase text-slate-400">Wallet ID Asaas</Label>
-              {isEditing ? (
-                <Input value={formData.asaas_wallet_id} onChange={(e) => setFormData({...formData, asaas_wallet_id: e.target.value})} className="bg-white/10 border-none text-white h-10 rounded-lg font-mono text-xs" />
-              ) : (
-                <p className="text-xs font-mono text-indigo-300 truncate">{profile.asaas_wallet_id || "Não configurada"}</p>
-              )}
+        <div className="space-y-6">
+          <Card className="p-8 border-none shadow-xl bg-slate-900 text-white rounded-[2.5rem] space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-[#2D1B69] rounded-lg text-[#FFB703]"><Wallet className="w-5 h-5" /></div>
+              <h3 className="font-black">Financeiro Asaas</h3>
             </div>
-            <p className="text-[10px] text-slate-400 leading-relaxed">
-              O Wallet ID é necessário para receber os pagamentos dos seus shows via split automático.
-            </p>
-          </div>
-        </Card>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Label className="text-[10px] font-black uppercase text-slate-400">Wallet ID Oficial</Label>
+                <p className="text-xs font-mono text-indigo-300 truncate bg-white/5 p-2 rounded-lg">
+                  {profile.asaas_wallet_id || "Não configurado"}
+                </p>
+              </div>
+              <p className="text-[10px] text-slate-400 leading-relaxed italic">
+                O Wallet ID é vital para o split automático de comissões. Verifique se o ID está correto para evitar atrasos no recebimento.
+              </p>
+            </div>
+          </Card>
+
+          <Card className="p-8 border-none shadow-xl bg-white rounded-[2.5rem]">
+            <h3 className="text-lg font-black text-[#2D1B69] mb-4">Estatísticas</h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-slate-500 font-bold uppercase">Membro desde</span>
+                <span className="text-xs font-black text-[#2D1B69]">{new Date(profile.created_at).toLocaleDateString()}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-slate-500 font-bold uppercase">Show Realizados</span>
+                <Badge className="bg-emerald-50 text-emerald-600 border-none">{profile.work_count || 0}</Badge>
+              </div>
+            </div>
+          </Card>
+        </div>
       </div>
     </div>
   );
