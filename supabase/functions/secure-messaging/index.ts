@@ -16,7 +16,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // SECURITY: Verify JWT
     const authHeader = req.headers.get('Authorization')!
     const token = authHeader.replace('Bearer ', '')
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
@@ -25,28 +24,31 @@ serve(async (req) => {
     const { receiverId, content, contractId } = await req.json()
     const senderId = user.id
 
-    // 1. Verificar se o contrato permite troca de contatos (ex: após aceite)
+    // 1. Verificar status do contrato
     const { data: contract } = await supabaseClient
       .from('contracts')
       .select('status')
       .eq('id', contractId)
       .single()
 
-    const isAccepted = contract?.status === 'ACEITO' || contract?.status === 'PAGO' || contract?.status === 'COMPLETED' || contract?.status === 'ACCEPTED' || contract?.status === 'PAID';
+    // Status que permitem troca de contato
+    const isSafeStatus = ['ACEITO', 'PAGO', 'COMPLETED', 'ACCEPTED', 'PAID', 'SIGNED', 'ASSINADO'].includes(contract?.status);
     
     let finalContent = content;
     let isBlocked = false;
     let reason = "";
 
-    // 2. Filtro Anti-Bypass (Apenas se não estiver aceito)
-    if (!isAccepted) {
-      // Bloqueia qualquer sequência de números (0-9) que possa ser telefone/pix
-      const hasNumbers = /[0-9]{4,}/.test(content.replace(/\s/g, ''));
+    // 2. Filtro Anti-Bypass (Bloqueio de números)
+    if (!isSafeStatus) {
+      // Detecta sequências de 8 ou mais números (com ou sem espaços/traços)
+      const phoneRegex = /(\d[\s-]*){8,}/;
+      const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
       
-      if (hasNumbers) {
+      if (phoneRegex.test(content) || emailRegex.test(content)) {
         isBlocked = true;
-        reason = "Compartilhamento de contatos não permitido antes do aceite.";
-        finalContent = content.replace(/[0-9]/g, '*');
+        reason = "Bloqueio de segurança: Compartilhamento de contatos não permitido nesta fase.";
+        // Ofusca números e e-mails
+        finalContent = content.replace(/[0-9]/g, '*').replace(/@/g, '[at]');
       }
     }
 

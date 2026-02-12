@@ -19,25 +19,21 @@ const ProDashboard = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // 1. Busca perfil para pegar XP e Rating reais
       const { data: profile } = await supabase
         .from('profiles')
         .select('full_name, xp_total, rating, is_superstar, is_verified')
         .eq('id', user.id)
         .single();
       
-      // 2. Busca contratos para calcular financeiro e agenda
       const { data: contracts } = await supabase
         .from('contracts')
         .select('valor_atual, status')
         .eq('profissional_profile_id', user.id);
 
-      // Ganhos: Apenas contratos que já foram pagos ou concluídos
       const totalEarnings = contracts?.filter(c => 
         ['PAGO', 'COMPLETED', 'PAID', 'ASSINADO', 'SIGNED'].includes(c.status)
       ).reduce((acc, curr) => acc + Number(curr.valor_atual), 0) || 0;
 
-      // Shows Confirmados: Contratos Aceitos, Assinados ou Pagos
       const upcomingShows = contracts?.filter(c => 
         ['ACEITO', 'ASSINADO', 'PAGO', 'ACCEPTED', 'SIGNED', 'PAID'].includes(c.status)
       ).length || 0;
@@ -55,6 +51,9 @@ const ProDashboard = () => {
   };
 
   if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin w-8 h-8 text-[#2D1B69]" /></div>;
+
+  // XP Mínimo 0
+  const displayXp = Math.max(0, stats.profile?.xp_total || 0);
 
   return (
     <div className="space-y-8">
@@ -98,7 +97,7 @@ const ProDashboard = () => {
         />
         <StatCard 
           title="Pontos XP" 
-          value={`${Math.max(0, stats.profile?.xp_total || 0)} pts`} 
+          value={`${displayXp} pts`} 
           icon={TrendingUp} 
           color="purple" 
         />
