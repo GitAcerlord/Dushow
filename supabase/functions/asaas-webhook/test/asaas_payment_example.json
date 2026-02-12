@@ -1,0 +1,16 @@
+{
+  "event": "PAYMENT_RECEIVED",
+  "payment": {
+    "id": "pay_000012345678",
+    "status": "CONFIRMED",
+    "value": 500.00,
+    "originalValue": 500.00,
+    "customer": "cus_000001234",
+    "billingType": "PIX",
+    "creditCard": null,
+    "description": "Saque para usuário",
+    "dueDate": "2026-02-11",
+    "dateCreated": "2026-02-11T10:00:00Z",
+    "paymentDate": "2026-02-11T10:05:00Z"
+  }
+}
