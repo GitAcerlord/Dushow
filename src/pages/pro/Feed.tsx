@@ -79,7 +79,7 @@ const Feed = () => {
       });
       if (postError) throw postError;
 
-      // Adiciona XP
+      // Adiciona XP (Garantindo valor positivo)
       await supabase.from('xp_transactions').insert({
         profile_id: userProfile.id,
         action: 'POST',
@@ -100,7 +100,6 @@ const Feed = () => {
     if (!confirm("Excluir permanentemente? Isso removerá 5 XP da sua conta.")) return;
     
     try {
-      // Chama a Edge Function para garantir exclusão total e estorno de XP
       const { error } = await supabase.functions.invoke('delete-post', {
         body: { postId }
       });

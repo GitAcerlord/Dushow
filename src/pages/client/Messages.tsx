@@ -22,16 +22,17 @@ const ClientMessages = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Corrigido: contratante_profile_id e status em português
     const { data: contracts, error } = await supabase
       .from('contracts')
       .select(`
         id,
         event_name,
         status,
-        pro:profiles!contracts_pro_id_fkey(id, full_name, avatar_url)
+        pro:profiles!contracts_profissional_profile_id_fkey(id, full_name, avatar_url)
       `)
-      .eq('client_id', user.id)
-      .in('status', ['PENDING', 'ACCEPTED', 'SIGNED', 'PAID', 'CREATED'])
+      .eq('contratante_profile_id', user.id)
+      .in('status', ['PENDENTE', 'ACEITO', 'ASSINADO', 'PAGO', 'CONTRAPROPOSTA'])
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -50,7 +51,7 @@ const ClientMessages = () => {
       <Card className="border-none shadow-sm bg-white overflow-hidden flex flex-col rounded-[2rem]">
         <div className="p-6 border-b bg-slate-50">
           <h3 className="font-black text-slate-900">Conversas Ativas</h3>
-          <p className="text-[10px] text-slate-400 uppercase font-bold mt-1">Negociações e Contratos Ativos</p>
+          <p className="text-[10px] text-slate-400 uppercase font-bold mt-1">Negociações e Contratos</p>
         </div>
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {conversations.length === 0 ? (
