@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from "@/utils/toast";
+import { getSafeImageUrl } from '@/utils/url-validator';
 
 const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }: any) => {
   const [messages, setMessages] = useState<any[]>([]);
@@ -26,7 +27,6 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
       if (user && contractId) {
         fetchMessages();
         
-        // REAL-TIME SYNC: Escutando mudanças na tabela de mensagens para este contrato
         const channel = supabase
           .channel(`chat:${contractId}`)
           .on('postgres_changes', { 
@@ -35,7 +35,6 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
             table: 'messages',
             filter: `contract_id=eq.${contractId}`
           }, (payload) => {
-            // Evita duplicar mensagem enviada pelo próprio usuário (já adicionada no handleSendMessage)
             setMessages(prev => {
               const exists = prev.some(m => m.id === payload.new.id);
               return exists ? prev : [...prev, payload.new];
@@ -63,12 +62,14 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
       .eq('contract_id', contractId)
       .order('created_at', { ascending: true });
     
-    if (error) {
-      console.error("[ChatWindow] Fetch error:", error);
-    } else {
-      setMessages(data || []);
-    }
+    if (!error) setMessages(data || []);
     setLoading(false);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Regra de Negócio: Bloquear digitação de números no frontend
+    const cleanValue = e.target.value.replace(/[0-9]/g, '');
+    setInputText(cleanValue);
   };
 
   const handleSendMessage = async () => {
@@ -76,7 +77,6 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
 
     setSending(true);
     try {
-      // Chamada para Edge Function que lida com segurança e bypass
       const { data, error } = await supabase.functions.invoke('secure-messaging', {
         body: {
           senderId: currentUser.id,
@@ -86,25 +86,28 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        const errBody = await error.context?.json();
+        throw new Error(errBody?.error || "Erro ao enviar mensagem.");
+      }
       
-      // Adição otimista na UI
       setMessages(prev => [...prev, data]);
       setInputText("");
     } catch (error: any) {
-      console.error("[ChatWindow] Send error:", error);
-      showError("Erro ao processar mensagem.");
+      showError(error.message);
     } finally {
       setSending(false);
     }
   };
+
+  const safeAvatar = getSafeImageUrl(recipientAvatar, `https://api.dicebear.com/7.x/avataaars/svg?seed=${recipientName}`);
 
   return (
     <Card className="flex flex-col h-[600px] border-none shadow-xl bg-white overflow-hidden rounded-[2rem]">
       <div className="p-4 border-b flex items-center justify-between bg-slate-50">
         <div className="flex items-center gap-3">
           <Avatar>
-            <AvatarImage src={recipientAvatar} />
+            <AvatarImage src={safeAvatar} />
             <AvatarFallback>{recipientName?.[0]}</AvatarFallback>
           </Avatar>
           <div>
@@ -120,7 +123,7 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
       <div className="bg-amber-50 p-2 px-4 flex items-center gap-2 border-b border-amber-100">
         <ShieldAlert className="w-4 h-4 text-amber-600" />
         <p className="text-[10px] text-amber-800 font-medium">
-          A DUSHOW protege sua negociação. Contatos externos são bloqueados até o aceite.
+          Números de telefone e e-mails são bloqueados automaticamente por segurança.
         </p>
       </div>
 
@@ -134,7 +137,7 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
                 msg.sender_id === currentUser?.id 
                   ? 'bg-indigo-600 text-white rounded-tr-none' 
                   : 'bg-white text-slate-700 rounded-tl-none border border-slate-100'
-              } ${msg.is_blocked ? 'bg-red-50 text-red-600 border-red-100 italic' : ''}`}>
+              }`}>
                 {msg.content}
                 <div className={`text-[10px] mt-1 text-right ${msg.sender_id === currentUser?.id ? 'text-indigo-200' : 'text-slate-400'}`}>
                   {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -147,10 +150,10 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
 
       <div className="p-4 bg-white border-t flex gap-2">
         <Input 
-          placeholder="Digite sua mensagem..." 
+          placeholder="Digite sua mensagem (números não permitidos)..." 
           className="flex-1 bg-slate-50 border-none rounded-xl"
           value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
+          onChange={handleInputChange}
           onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
         />
         <Button onClick={handleSendMessage} disabled={sending} className="bg-indigo-600 rounded-xl">

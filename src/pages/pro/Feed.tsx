@@ -28,14 +28,18 @@ const Feed = () => {
   const [editContent, setEditContent] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
 
+  const fetchUserProfile = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      setUserProfile(profile);
+    }
+  };
+
   const fetchData = useCallback(async (pageNumber = 0, append = false) => {
     if (pageNumber === 0) setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user && pageNumber === 0) {
-        const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-        setUserProfile(profile);
-      }
+      await fetchUserProfile();
 
       const from = pageNumber * POSTS_PER_PAGE;
       const to = from + POSTS_PER_PAGE - 1;
@@ -79,7 +83,7 @@ const Feed = () => {
       });
       if (postError) throw postError;
 
-      // Adiciona XP (Garantindo valor positivo)
+      // Adiciona XP via transação (O trigger no banco garante que xp_total >= 0)
       await supabase.from('xp_transactions').insert({
         profile_id: userProfile.id,
         action: 'POST',
@@ -88,6 +92,9 @@ const Feed = () => {
 
       showSuccess("Publicado! +5 XP ganhos.");
       setPostContent(""); setSelectedImage(null); setImagePreview(null);
+      
+      // Sincronização Visual Imediata
+      await fetchUserProfile();
       fetchData(0);
     } catch (error: any) {
       showError(error.message);
@@ -108,6 +115,9 @@ const Feed = () => {
 
       setPosts(prev => prev.filter(p => p.id !== postId));
       showSuccess("Post removido e XP estornado.");
+      
+      // Sincronização Visual Imediata
+      await fetchUserProfile();
     } catch (error: any) {
       showError("Erro ao excluir post.");
     }
@@ -143,6 +153,21 @@ const Feed = () => {
 
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6">
+      {/* Barra de XP Visual */}
+      <Card className="p-4 border-none shadow-sm bg-indigo-600 text-white rounded-2xl flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-white/20 rounded-lg"><Zap className="w-5 h-5 text-amber-300" /></div>
+          <div>
+            <p className="text-[10px] font-black uppercase opacity-70">Seu Prestígio</p>
+            <p className="text-xl font-black">{Math.max(0, userProfile?.xp_total || 0)} XP</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] font-black uppercase opacity-70">Nível</p>
+          <p className="text-xl font-black">{userProfile?.level || 1}</p>
+        </div>
+      </Card>
+
       <Card className="p-6 border-none shadow-sm bg-white rounded-[2rem]">
         <div className="flex gap-4">
           <Avatar><AvatarImage src={getSafeImageUrl(userProfile?.avatar_url, '')} /></Avatar>
