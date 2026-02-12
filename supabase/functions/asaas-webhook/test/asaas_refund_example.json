@@ -1,0 +1,12 @@
+{
+  "event": "PAYMENT_REFUNDED",
+  "data": {
+    "id": "refund_000000111222",
+    "paymentId": "pay_000012345678",
+    "status": "REFUNDED",
+    "value": 500.00,
+    "reason": "Customer requested refund",
+    "dateCreated": "2026-02-11T12:00:00Z",
+    "refundDate": "2026-02-11T12:05:00Z"
+  }
+}

@@ -19,6 +19,7 @@ const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
   { icon: Users, label: 'Usuários', path: '/admin/users' },
   { icon: FileText, label: 'Contratos', path: '/admin/contracts' },
+  { icon: FileText, label: 'Disputas', path: '/admin/disputes' },
   { icon: MessageSquare, label: 'Mensagens', path: '/admin/messages' },
   { icon: CreditCard, label: 'Financeiro', path: '/admin/finance' },
   { icon: ShieldCheck, label: 'Aprovações', path: '/admin/approvals' },
