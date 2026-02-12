@@ -24,9 +24,15 @@ const ProMessages = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Corrigido o join para usar a FK correta: contratante_profile_id
     const { data: contracts } = await supabase
       .from('contracts')
-      .select(`id, event_name, status, client:profiles!contracts_client_id_fkey(id, full_name, avatar_url)`)
+      .select(`
+        id, 
+        event_name, 
+        status, 
+        client:profiles!contracts_contratante_profile_id_fkey(id, full_name, avatar_url)
+      `)
       .eq('profissional_profile_id', user.id)
       .order('created_at', { ascending: false });
 

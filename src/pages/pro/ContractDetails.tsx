@@ -36,12 +36,13 @@ const ContractDetails = () => {
       const { data: profileData } = await supabase.from('profiles').select('*').eq('id', authUser?.id).single();
       setProfile(profileData);
 
+      // Corrigidos os joins para usar as FKs reais da tabela contracts
       const { data, error } = await supabase
         .from('contracts')
         .select(`
           *, 
-          client:profiles!contracts_client_id_fkey(*), 
-          pro:profiles!contracts_pro_id_fkey(*)
+          client:profiles!contracts_contratante_profile_id_fkey(*), 
+          pro:profiles!contracts_profissional_profile_id_fkey(*)
         `)
         .eq('id', id)
         .maybeSingle();
@@ -73,7 +74,7 @@ const ContractDetails = () => {
   if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-indigo-600" /></div>;
   if (!contract) return <div className="p-20 text-center">Contrato não localizado.</div>;
 
-  const isClient = user?.id === contract.client_id;
+  const isClient = user?.id === contract.contratante_profile_id;
   const isProducer = profile?.active_context === 'PRODUCER';
   const canRelease = isClient && contract.status === 'PAID';
 
@@ -97,7 +98,7 @@ const ContractDetails = () => {
           <div className="text-left md:text-right">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor do Cachê</p>
             <p className={cn("text-3xl font-black", isClient ? "text-blue-600" : "text-indigo-600")}>
-              R$ {Number(contract.value).toLocaleString('pt-BR')}
+              R$ {Number(contract.valor_atual).toLocaleString('pt-BR')}
             </p>
           </div>
         </div>
@@ -145,7 +146,7 @@ const ContractDetails = () => {
             </div>
             <div className="space-y-1">
               <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-1"><Calendar className="w-3 h-3" /> Data</Label>
-              <p className="font-bold text-slate-900 text-lg">{new Date(contract.event_date).toLocaleDateString('pt-BR')}</p>
+              <p className="font-bold text-slate-900 text-lg">{new Date(contract.data_evento).toLocaleDateString('pt-BR')}</p>
             </div>
           </div>
           <div className="space-y-6">

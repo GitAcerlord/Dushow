@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Trophy, Share2, Loader2, Crown, Zap } from "lucide-react";
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { showSuccess } from '@/utils/toast';
 
 const ProAchievements = () => {
@@ -34,7 +34,7 @@ const ProAchievements = () => {
 
   if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin text-indigo-600" /></div>;
 
-  const xp = profile?.xp_total || 0;
+  const xp = Math.max(0, profile?.xp_total || 0);
   const level = profile?.level || 1;
   const nextLevelXp = level * 1000;
   const currentLevelXp = (level - 1) * 1000;

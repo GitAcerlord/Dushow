@@ -34,7 +34,7 @@ const ProDashboard = () => {
 
       // Ganhos: Apenas contratos que já foram pagos ou concluídos
       const totalEarnings = contracts?.filter(c => 
-        ['PAGO', 'COMPLETED', 'PAID'].includes(c.status)
+        ['PAGO', 'COMPLETED', 'PAID', 'ASSINADO', 'SIGNED'].includes(c.status)
       ).reduce((acc, curr) => acc + Number(curr.valor_atual), 0) || 0;
 
       // Shows Confirmados: Contratos Aceitos, Assinados ou Pagos
@@ -98,7 +98,7 @@ const ProDashboard = () => {
         />
         <StatCard 
           title="Pontos XP" 
-          value={`${stats.profile?.xp_total || 0} pts`} 
+          value={`${Math.max(0, stats.profile?.xp_total || 0)} pts`} 
           icon={TrendingUp} 
           color="purple" 
         />
