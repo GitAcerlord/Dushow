@@ -90,7 +90,7 @@ const Feed = () => {
       setPostContent(""); setSelectedImage(null); setImagePreview(null);
       fetchData(0);
     } catch (error: any) {
-      showError(error.message);
+      showError(error.message || "Erro ao publicar o post.");
     } finally {
       setIsPosting(false);
     }
@@ -109,7 +109,7 @@ const Feed = () => {
       setPosts(prev => prev.filter(p => p.id !== postId));
       showSuccess("Post removido e XP estornado.");
     } catch (error: any) {
-      showError("Erro ao excluir post.");
+      showError(error.message || "Erro ao excluir post.");
     }
   };
 
@@ -133,7 +133,7 @@ const Feed = () => {
       showSuccess("Post atualizado!");
       setEditingPost(null);
     } catch (error: any) {
-      showError("Erro ao atualizar post.");
+      showError(error.message || "Erro ao atualizar post.");
     } finally {
       setIsUpdating(false);
     }
