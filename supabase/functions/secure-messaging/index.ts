@@ -25,28 +25,35 @@ serve(async (req) => {
     const { receiverId, content, contractId } = await req.json()
     const senderId = user.id
 
-    // 1. Verificar se o contrato permite troca de contatos (ex: após aceite)
+    // 1. Verificar se o contrato permite troca de contatos (ex: após aceite ou pagamento)
     const { data: contract } = await supabaseClient
       .from('contracts')
       .select('status')
       .eq('id', contractId)
       .single()
 
-    const isAccepted = contract?.status === 'ACEITO' || contract?.status === 'PAGO' || contract?.status === 'COMPLETED' || contract?.status === 'ACCEPTED' || contract?.status === 'PAID';
+    // Status que liberam contatos: ACEITO, PAGO, COMPLETED, ASSINADO
+    const isContactAllowed = ['ACEITO', 'PAGO', 'COMPLETED', 'ASSINADO', 'ACCEPTED', 'PAID', 'SIGNED'].includes(contract?.status);
     
     let finalContent = content;
     let isBlocked = false;
     let reason = "";
 
-    // 2. Filtro Anti-Bypass (Apenas se não estiver aceito)
-    if (!isAccepted) {
-      // Bloqueia qualquer sequência de números (0-9) que possa ser telefone/pix
-      const hasNumbers = /[0-9]{4,}/.test(content.replace(/\s/g, ''));
+    // 2. Filtro Anti-Bypass (Apenas se contatos não estiverem liberados)
+    if (!isContactAllowed) {
+      // Regex para detectar qualquer sequência de 4 ou mais dígitos (Telefone, PIX, CPF)
+      const numberRegex = /[0-9]{4,}/;
+      // Regex para detectar e-mails
+      const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}/;
       
-      if (hasNumbers) {
+      const hasNumbers = numberRegex.test(content.replace(/[\s\.\-\(\)]/g, ''));
+      const hasEmail = emailRegex.test(content);
+
+      if (hasNumbers || hasEmail) {
         isBlocked = true;
-        reason = "Compartilhamento de contatos não permitido antes do aceite.";
-        finalContent = content.replace(/[0-9]/g, '*');
+        reason = "Compartilhamento de contatos não permitido antes do fechamento oficial.";
+        // Ofusca o conteúdo bloqueado
+        finalContent = content.replace(/[0-9]/g, '*').replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}/g, '[E-MAIL BLOQUEADO]');
       }
     }
 
