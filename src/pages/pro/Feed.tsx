@@ -79,14 +79,7 @@ const Feed = () => {
       });
       if (postError) throw postError;
 
-      // Adiciona XP (Garantindo valor positivo)
-      await supabase.from('xp_transactions').insert({
-        profile_id: userProfile.id,
-        action: 'POST',
-        points: 5
-      });
-
-      showSuccess("Publicado! +5 XP ganhos.");
+      showSuccess("Publicado com sucesso.");
       setPostContent(""); setSelectedImage(null); setImagePreview(null);
       fetchData(0);
     } catch (error: any) {
@@ -97,7 +90,7 @@ const Feed = () => {
   };
 
   const handleDeletePost = async (postId: string) => {
-    if (!confirm("Excluir permanentemente? Isso removerá 5 XP da sua conta.")) return;
+    if (!confirm("Excluir permanentemente? Isso estorna o XP ganho pelo post.")) return;
     
     try {
       const { error } = await supabase.functions.invoke('delete-post', {
@@ -170,7 +163,7 @@ const Feed = () => {
                 <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} className="text-slate-500 gap-2 hover:bg-indigo-50 hover:text-[#2D1B69] rounded-xl">
                   <ImageIcon className="w-4 h-4" /> Foto
                 </Button>
-                <div className="flex items-center gap-1 text-amber-600 text-xs font-black px-3"><Zap className="w-3 h-3" /> +5 XP</div>
+                <div className="flex items-center gap-1 text-amber-600 text-xs font-black px-3"><Zap className="w-3 h-3" /> +2 texto / +7 texto+imagem</div>
               </div>
               <Button onClick={handlePost} disabled={isPosting || !postContent.trim()} className="bg-[#2D1B69] rounded-xl px-8 font-bold shadow-lg shadow-purple-100">
                 {isPosting ? <Loader2 className="animate-spin" /> : "Publicar"}

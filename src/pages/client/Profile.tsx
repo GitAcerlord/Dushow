@@ -85,7 +85,10 @@ const ClientProfile = () => {
         full_name: formData.full_name,
         bio: formData.bio,
         location: formData.location,
-        avatar_url: formData.avatar_url
+        avatar_url: formData.avatar_url,
+        contractor_type: formData.contractor_type,
+        main_event_type: formData.main_event_type,
+        phone: formData.phone
       }).eq('id', profile.id);
 
       if (error) throw error;
@@ -144,6 +147,18 @@ const ClientProfile = () => {
                     <div className="space-y-1">
                       <Label className="text-[10px] font-black uppercase text-slate-400">Localização</Label>
                       <Input value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} className="bg-slate-50 border-none h-12 rounded-xl" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-black uppercase text-slate-400">Tipo de Contratante</Label>
+                      <Input value={formData.contractor_type || ''} onChange={(e) => setFormData({ ...formData, contractor_type: e.target.value })} className="bg-slate-50 border-none h-12 rounded-xl" placeholder="Pessoa Fisica, Empresa, Agencia..." />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-black uppercase text-slate-400">Tipo de Evento Principal</Label>
+                      <Input value={formData.main_event_type || ''} onChange={(e) => setFormData({ ...formData, main_event_type: e.target.value })} className="bg-slate-50 border-none h-12 rounded-xl" placeholder="Casamento, Corporativo, Show..." />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-black uppercase text-slate-400">Telefone (privado)</Label>
+                      <Input value={formData.phone || ''} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="bg-slate-50 border-none h-12 rounded-xl" />
                     </div>
                   </div>
                 ) : (

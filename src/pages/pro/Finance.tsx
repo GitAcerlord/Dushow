@@ -33,6 +33,15 @@ const ProFinance = () => {
   const [pixKey, setPixKey] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const getCommissionLabel = (plan?: string) => {
+    switch ((plan || 'free').toLowerCase()) {
+      case 'pro': return '7%';
+      case 'elite': return '5%';
+      case 'superstar': return '2%';
+      default: return '10%';
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -59,7 +68,7 @@ const ProFinance = () => {
   const handleWithdraw = async () => {
     const amount = parseFloat(withdrawAmount);
     if (amount > (profile?.balance_available || 0)) return showError("Saldo disponível insuficiente.");
-    if (amount < 10) return showError("Valor mínimo de saque: R$ 10,00");
+    if (amount < 50) return showError("Valor mínimo de saque: R$ 50,00");
 
     setIsSubmitting(true);
     try {
@@ -104,7 +113,7 @@ const ProFinance = () => {
             <Clock className="w-4 h-4" /> Saldo em Escrow (Bloqueado)
           </div>
           <h3 className="text-3xl font-black text-slate-400">R$ {Number(profile?.balance_pending || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
-          <p className="text-[10px] text-slate-400 leading-tight">Valores garantidos que serão liberados 48h após a realização do show.</p>
+          <p className="text-[10px] text-slate-400 leading-tight">Valores garantidos são liberados após confirmação do evento ou 24h após a data_evento.</p>
         </Card>
 
         {/* Saldo Disponível */}
@@ -149,7 +158,7 @@ const ProFinance = () => {
                   </div>
                   <div className="p-4 bg-blue-50 rounded-xl flex gap-3 items-center">
                     <Landmark className="w-5 h-5 text-blue-600" />
-                    <p className="text-[10px] text-blue-700 font-medium">A transferência será processada pelo Asaas para sua conta bancária em até 24h úteis.</p>
+                    <p className="text-[10px] text-blue-700 font-medium">A transferência será processada para sua conta em até 2 dias úteis.</p>
                   </div>
                   <Button 
                     onClick={handleWithdraw} 
@@ -165,7 +174,7 @@ const ProFinance = () => {
           
           <div className="pt-4 border-t border-white/10 flex items-center gap-2">
             <Percent className="w-4 h-4 text-[#FFB703]" />
-            <p className="text-[10px] text-indigo-200 font-bold uppercase">Taxa da Plataforma: 15% retida automaticamente no split.</p>
+            <p className="text-[10px] text-indigo-200 font-bold uppercase">Taxa da Plataforma: {getCommissionLabel(profile?.plan_tier)} (conforme seu plano).</p>
           </div>
         </Card>
       </div>

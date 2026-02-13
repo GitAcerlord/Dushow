@@ -24,9 +24,9 @@ const ClientPayments = () => {
 
       const { data, error } = await supabase
         .from('contracts')
-        .select('*, pro:profiles!contracts_pro_id_fkey(full_name)')
-        .eq('client_id', user.id)
-        .in('status', ['PAID', 'COMPLETED'])
+        .select('*, pro:profiles!contracts_profissional_profile_id_fkey(full_name)')
+        .eq('contratante_profile_id', user.id)
+        .in('status', ['PAGO_ESCROW', 'LIBERADO_FINANCEIRO'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -38,7 +38,7 @@ const ClientPayments = () => {
     }
   };
 
-  const totalInvested = payments.reduce((acc, curr) => acc + Number(curr.value), 0);
+  const totalInvested = payments.reduce((acc, curr) => acc + Number(curr.valor_atual ?? curr.value), 0);
 
   if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin text-blue-600 w-10 h-10" /></div>;
 
@@ -99,14 +99,14 @@ const ClientPayments = () => {
                     <p className="text-[10px] text-slate-400 uppercase font-bold">{p.event_name}</p>
                   </TableCell>
                   <TableCell className="font-black text-blue-600">
-                    R$ {Number(p.value).toLocaleString('pt-BR')}
+                    R$ {Number(p.valor_atual ?? p.value).toLocaleString('pt-BR')}
                   </TableCell>
                   <TableCell>
                     <Badge className={cn(
                       "font-bold text-[10px] uppercase px-3 py-1 rounded-full",
-                      p.status === 'PAID' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                      p.status === 'PAGO_ESCROW' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
                     )}>
-                      {p.status === 'PAID' ? 'Protegido' : 'Repassado'}
+                      {p.status === 'PAGO_ESCROW' ? 'Protegido' : 'Repassado'}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-xs text-slate-500">

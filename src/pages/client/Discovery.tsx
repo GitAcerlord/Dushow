@@ -27,7 +27,14 @@ const Discovery = () => {
   const fetchData = async () => {
     setLoading(true);
     const { data: cats } = await supabase.from('professional_categories').select('*').order('order');
-    const { data: pros } = await supabase.from('profiles').select('*').eq('role', 'PRO').eq('is_active', true).order('is_superstar', { ascending: false });
+    const { data: pros } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('role', 'PRO')
+      .eq('is_active', true)
+      .not('avatar_url', 'is', null)
+      .neq('avatar_url', '')
+      .order('is_superstar', { ascending: false });
     setCategories(cats || []);
     setArtists(pros || []);
     setLoading(false);
@@ -92,7 +99,7 @@ const Discovery = () => {
 
                 <Button 
                   className="w-full bg-[#2D1B69] hover:bg-[#1a1040] h-12 rounded-xl font-black transition-all gap-2"
-                  onClick={() => navigate(`/app/artist/${artist.id}`)}
+                  onClick={() => navigate(`/artist/${artist.id}`)}
                 >
                   Ver Perfil <ArrowRight className="w-4 h-4" />
                 </Button>

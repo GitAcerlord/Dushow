@@ -38,6 +38,7 @@ const ProMessages = () => {
           client:profiles!contracts_contratante_profile_id_fkey(id, full_name, avatar_url)
         `)
         .eq('profissional_profile_id', user.id)
+        .in('status', ['PROPOSTO', 'CONTRAPROPOSTA', 'AGUARDANDO_PAGAMENTO', 'PAGO_ESCROW', 'EM_EXECUCAO', 'CONCLUIDO', 'LIBERADO_FINANCEIRO'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;

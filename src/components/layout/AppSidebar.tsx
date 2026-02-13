@@ -48,6 +48,17 @@ const AppSidebar = ({ profile }: any) => {
         { icon: MessageSquare, label: 'Mensagens', path: '/app/messages' },
       ]
     },
+    CONTRACTOR: {
+      label: 'Contratante',
+      items: [
+        { icon: LayoutDashboard, label: 'Dashboard', path: '/app' },
+        { icon: Search, label: 'Descobrir', path: '/app/discovery' },
+        { icon: Calendar, label: 'Eventos', path: '/app/events' },
+        { icon: MessageSquare, label: 'Mensagens', path: '/app/messages' },
+        { icon: Heart, label: 'Favoritos', path: '/app/favorites' },
+        { icon: CreditCard, label: 'Pagamentos', path: '/app/payments' },
+      ]
+    },
     CLIENT: {
       label: 'Contratante',
       items: [
@@ -56,6 +67,7 @@ const AppSidebar = ({ profile }: any) => {
         { icon: Calendar, label: 'Eventos', path: '/app/events' },
         { icon: MessageSquare, label: 'Mensagens', path: '/app/messages' },
         { icon: Heart, label: 'Favoritos', path: '/app/favorites' },
+        { icon: CreditCard, label: 'Pagamentos', path: '/app/payments' },
       ]
     }
   };
@@ -69,6 +81,11 @@ const AppSidebar = ({ profile }: any) => {
 
   const switchContext = async (newContext: string) => {
     if (newContext === context) return;
+    const enabled = profile?.enabled_contexts || [];
+    if (!enabled.includes(newContext)) {
+      showError("Contexto não habilitado para este perfil.");
+      return;
+    }
     const { error } = await supabase.from('profiles').update({ active_context: newContext }).eq('id', profile.id);
     if (!error) window.location.href = '/app';
     else showError("Erro ao trocar de contexto.");
@@ -105,7 +122,7 @@ const AppSidebar = ({ profile }: any) => {
             <DropdownMenuItem onClick={() => switchContext('PRODUCER')} className="hover:bg-white/10 cursor-pointer gap-2">
               <Ticket size={14} className="text-[#FFB703]" /> Produtor
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => switchContext('CLIENT')} className="hover:bg-white/10 cursor-pointer gap-2">
+            <DropdownMenuItem onClick={() => switchContext('CONTRACTOR')} className="hover:bg-white/10 cursor-pointer gap-2">
               <Search size={14} className="text-[#FFB703]" /> Contratante
             </DropdownMenuItem>
           </DropdownMenuContent>

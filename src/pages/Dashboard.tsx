@@ -33,6 +33,7 @@ const Dashboard = () => {
   switch (profile?.active_context) {
     case 'PRODUCER':
       return <ProducerDashboard />;
+    case 'CONTRACTOR':
     case 'CLIENT':
       return <ClientDashboard />;
     case 'PRO':

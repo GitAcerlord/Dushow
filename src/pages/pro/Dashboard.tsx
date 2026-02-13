@@ -30,12 +30,11 @@ const ProDashboard = () => {
         .select('valor_atual, status')
         .eq('profissional_profile_id', user.id);
 
-      const totalEarnings = contracts?.filter(c => 
-        ['PAGO', 'COMPLETED', 'PAID', 'ASSINADO', 'SIGNED'].includes(c.status)
-      ).reduce((acc, curr) => acc + Number(curr.valor_atual), 0) || 0;
+      const totalEarnings = contracts?.filter(c => ['LIBERADO_FINANCEIRO', 'CONCLUIDO'].includes(c.status))
+        .reduce((acc, curr) => acc + Number(curr.valor_atual), 0) || 0;
 
       const upcomingShows = contracts?.filter(c => 
-        ['ACEITO', 'ASSINADO', 'PAGO', 'ACCEPTED', 'SIGNED', 'PAID'].includes(c.status)
+        ['AGUARDANDO_PAGAMENTO', 'PAGO_ESCROW', 'EM_EXECUCAO'].includes(c.status)
       ).length || 0;
 
       setStats({

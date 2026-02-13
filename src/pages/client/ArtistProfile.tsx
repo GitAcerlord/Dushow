@@ -5,8 +5,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Star, MapPin, Music, CheckCircle2, Award, ArrowLeft, Loader2, Calendar, DollarSign, Heart, Lock
+import {
+  Star, MapPin, Music, CheckCircle2, ArrowLeft, Loader2, Heart
 } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { getSafeImageUrl } from '@/utils/url-validator';
@@ -21,6 +21,7 @@ const ArtistProfile = () => {
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isProposalOpen, setIsProposalOpen] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
 
   useEffect(() => {
     fetchArtistData();
@@ -33,11 +34,44 @@ const ArtistProfile = () => {
       setArtist(profile);
       const { data: reviewsData } = await supabase.from('reviews').select('*, profiles:client_id(full_name, avatar_url), contracts:contract_id(event_name)').eq('pro_id', id);
       setReviews(reviewsData || []);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && id) {
+        const { data: fav } = await supabase
+          .from('favorites')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('artist_id', id)
+          .limit(1);
+        setIsFavorited((fav || []).length > 0);
+      }
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const ensureLoggedIn = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      navigate('/login');
+      return false;
+    }
+    return true;
+  };
+
+  const handleToggleFavorite = async () => {
+    if (!(await ensureLoggedIn())) return;
+    const { data, error } = await supabase.functions.invoke('toggle-favorite', { body: { artistId: id } });
+    if (error) return showError("Falha ao atualizar favorito.");
+    setIsFavorited(Boolean(data?.favorited));
+    showSuccess(data?.favorited ? "Adicionado aos favoritos." : "Removido dos favoritos.");
+  };
+
+  const handleOpenProposal = async () => {
+    if (!(await ensureLoggedIn())) return;
+    setIsProposalOpen(true);
   };
 
   if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-[#2D1B69] w-10 h-10" /></div>;
@@ -89,10 +123,18 @@ const ArtistProfile = () => {
               <p className="text-4xl font-black text-[#2D1B69]">R$ {Number(artist.base_fee || 0).toLocaleString('pt-BR')}</p>
             </div>
             <Button 
-              onClick={() => setIsProposalOpen(true)} 
+              onClick={handleOpenProposal}
               className="w-full h-14 bg-[#FFB703] hover:bg-[#e6a600] text-[#2D1B69] rounded-2xl font-black text-lg shadow-lg"
             >
               Solicitar Proposta
+            </Button>
+            <Button
+              onClick={handleToggleFavorite}
+              variant="outline"
+              className="w-full h-12 rounded-2xl font-black border-slate-200"
+            >
+              <Heart className={`w-4 h-4 mr-2 ${isFavorited ? 'fill-current text-red-500' : ''}`} />
+              {isFavorited ? 'Remover Favorito' : 'Salvar Favorito'}
             </Button>
             <div className="pt-6 border-t space-y-4">
               <div className="flex items-center gap-3 text-sm text-slate-600 font-medium">

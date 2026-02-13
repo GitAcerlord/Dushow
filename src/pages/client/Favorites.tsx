@@ -4,8 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Heart, Star, MapPin, Music, Loader2, Trash2 } from "lucide-react";
+import { Heart, Star, Loader2, Trash2 } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 
@@ -38,12 +37,11 @@ const Favorites = () => {
     setLoading(false);
   };
 
-  const removeFavorite = async (favId: string) => {
-    const { error } = await supabase.from('favorites').delete().eq('id', favId);
-    if (!error) {
-      setFavorites(favorites.filter(f => f.id !== favId));
-      showSuccess("Removido dos favoritos.");
-    }
+  const removeFavorite = async (favId: string, artistId: string) => {
+    const { error } = await supabase.functions.invoke('toggle-favorite', { body: { artistId } });
+    if (error) return showError("Falha ao remover favorito.");
+    setFavorites(favorites.filter(f => f.id !== favId));
+    showSuccess("Removido dos favoritos.");
   };
 
   if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin text-blue-600" /></div>;
@@ -59,8 +57,8 @@ const Favorites = () => {
         <Card className="p-20 text-center border-dashed border-2 space-y-4">
           <Heart className="w-12 h-12 text-slate-200 mx-auto" />
           <p className="text-slate-500 font-medium">Sua lista de favoritos está vazia.</p>
-          <Button asChild className="bg-blue-600">
-            <button onClick={() => navigate('/client/discovery')}>Explorar Artistas</button>
+          <Button className="bg-blue-600" onClick={() => navigate('/app/discovery')}>
+            Explorar Artistas
           </Button>
         </Card>
       ) : (
@@ -76,7 +74,7 @@ const Favorites = () => {
                   variant="destructive" 
                   size="icon" 
                   className="absolute top-3 right-3 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => removeFavorite(fav.id)}
+                  onClick={() => removeFavorite(fav.id, fav.artist.id)}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -91,9 +89,9 @@ const Favorites = () => {
                 </div>
                 <Button 
                   className="w-full bg-slate-900 rounded-xl"
-                  onClick={() => navigate('/client/checkout', { state: { artist: fav.artist } })}
+                  onClick={() => navigate(`/app/artist/${fav.artist.id}`)}
                 >
-                  Contratar Agora
+                  Ver Perfil
                 </Button>
               </div>
             </Card>

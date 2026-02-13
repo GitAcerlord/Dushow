@@ -55,7 +55,7 @@ const ProAgenda = () => {
       .from('contracts')
       .select('*')
       .eq('profissional_profile_id', user.id)
-      .in('status', ['ACEITO', 'ASSINADO', 'PAGO', 'COMPLETED']);
+      .in('status', ['AGUARDANDO_PAGAMENTO', 'PAGO_ESCROW', 'EM_EXECUCAO']);
 
     const { data: manualBlocks } = await supabase
       .from('availability_blocks')

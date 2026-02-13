@@ -27,11 +27,23 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
       // Verifica se o perfil existe (Perfil Único)
       const { data: profile } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, active_context, enabled_contexts')
         .eq('id', session.user.id)
         .single();
 
-      setAuthenticated(!!profile);
+      if (!profile) {
+        setAuthenticated(false);
+        setLoading(false);
+        return;
+      }
+
+      const enabled = profile.enabled_contexts || ['PRO'];
+      const active = profile.active_context || enabled[0] || 'PRO';
+      if (!enabled.includes(active)) {
+        await supabase.from('profiles').update({ active_context: enabled[0] || 'PRO' }).eq('id', profile.id);
+      }
+
+      setAuthenticated(true);
       setLoading(false);
     };
 

@@ -29,7 +29,7 @@ const ProContracts = () => {
 
       const { data, error } = await supabase
         .from('contracts')
-        .select('*, profiles!contracts_client_id_fkey(full_name, avatar_url)')
+        .select('*, profiles!contracts_contratante_profile_id_fkey(full_name, avatar_url)')
         .eq('profissional_profile_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -84,10 +84,10 @@ const ProContracts = () => {
                   <h3 className="text-xl font-bold text-[#2D1B69]">{contract.event_name}</h3>
                   <Badge className={cn(
                     "uppercase text-[10px] font-black px-3 py-1 rounded-full",
-                    contract.status === 'COMPLETED' ? 'bg-emerald-500 text-white' : 
-                    contract.status === 'ACEITO' ? 'bg-[#FFB703] text-[#2D1B69]' :
+                    contract.status === 'CONCLUIDO' ? 'bg-emerald-500 text-white' : 
+                    contract.status === 'AGUARDANDO_PAGAMENTO' ? 'bg-[#FFB703] text-[#2D1B69]' :
                     contract.status === 'REJEITADO' ? 'bg-red-500 text-white' : 
-                    contract.status === 'PAGO' ? 'bg-[#2D1B69] text-white' : 'bg-slate-100 text-slate-500'
+                    contract.status === 'PAGO_ESCROW' ? 'bg-[#2D1B69] text-white' : 'bg-slate-100 text-slate-500'
                   )}>
                     {contract.status}
                   </Badge>
@@ -100,7 +100,7 @@ const ProContracts = () => {
               </div>
 
               <div className="flex flex-row md:flex-col gap-2 w-full md:w-auto">
-                {contract.status === 'PENDING' && (
+                {contract.status === 'PROPOSTO' && (
                   <>
                     <Button 
                       disabled={processingId === contract.id}

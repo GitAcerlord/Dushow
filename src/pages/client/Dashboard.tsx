@@ -1,23 +1,23 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Calendar, DollarSign, ArrowRight, 
-  Clock, Loader2, Search, CheckCircle2
+import {
+  Clock,
+  Search,
+  Loader2,
+  ArrowRight,
+  DollarSign,
+  CheckCircle2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 const ClientDashboard = () => {
-  const [stats, setStats] = useState({
-    totalSpent: 0,
-    activeEvents: 0,
-    pendingProposals: 0
-  });
+  const [stats, setStats] = useState({ totalSpent: 0, activeEvents: 0, pendingProposals: 0 });
   const [relevantEvents, setRelevantEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -29,26 +29,26 @@ const ClientDashboard = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data: contracts, error } = await supabase
-      .from('contracts')
-      .select('*, pro:profiles!contracts_pro_id_fkey(full_name, avatar_url)')
-      .eq('client_id', user.id)
-      .order('created_at', { ascending: false });
+    const [{ data: dashboardStats }, { data: events, error: eventsError }] = await Promise.all([
+      supabase.rpc("get_client_dashboard_stats", { p_client_id: user.id }),
+      supabase
+        .from("client_events_summary")
+        .select("*")
+        .eq("contratante_profile_id", user.id)
+        .order("event_date", { ascending: true })
+        .limit(10),
+    ]);
 
-    if (error) {
-      console.error("Erro ao buscar dados do painel:", error);
-    } else if (contracts) {
-      const totalSpent = contracts
-        .filter(c => c.status === 'PAID' || c.status === 'COMPLETED')
-        .reduce((acc, curr) => acc + Number(curr.value), 0);
-      
-      const activeEvents = contracts.filter(c => c.status === 'SIGNED' || c.status === 'PAID').length;
-      const pendingProposals = contracts.filter(c => c.status === 'PENDING').length;
-
-      setStats({ totalSpent, activeEvents, pendingProposals });
-      const filtered = contracts.filter(c => ['PENDING', 'SIGNED', 'ACCEPTED', 'PAID'].includes(c.status));
-      setRelevantEvents(filtered.slice(0, 10));
+    if (eventsError) {
+      console.error("Erro ao buscar eventos:", eventsError);
     }
+
+    setStats({
+      totalSpent: Number(dashboardStats?.total_investido || 0),
+      activeEvents: Number(dashboardStats?.eventos_confirmados || 0),
+      pendingProposals: Number(dashboardStats?.propostas_pendentes || 0),
+    });
+    setRelevantEvents(events || []);
     setLoading(false);
   };
 
@@ -59,7 +59,7 @@ const ClientDashboard = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h1 className="text-3xl font-black text-[#2D1B69]">Meu Painel</h1>
-          <p className="text-slate-500">Acompanhe seus eventos e contratações em tempo real.</p>
+          <p className="text-slate-500">Acompanhe seus eventos e contratacoes em tempo real.</p>
         </div>
         <Button asChild className="bg-[#2D1B69] hover:bg-[#1a1040] text-white rounded-xl shadow-lg shadow-purple-100">
           <Link to="/app/discovery"><Search className="w-4 h-4 mr-2" /> Buscar Novos Artistas</Link>
@@ -72,7 +72,7 @@ const ClientDashboard = () => {
             <div className="p-3 bg-purple-50 rounded-xl"><DollarSign className="w-6 h-6 text-[#2D1B69]" /></div>
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Investido</p>
-              <h3 className="text-2xl font-black text-[#2D1B69]">R$ {stats.totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
+              <h3 className="text-2xl font-black text-[#2D1B69]">R$ {stats.totalSpent.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</h3>
             </div>
           </div>
         </Card>
@@ -107,32 +107,31 @@ const ClientDashboard = () => {
             relevantEvents.map((event) => (
               <Card key={event.id} className="p-4 border-none shadow-sm bg-white flex items-center justify-between hover:shadow-md transition-shadow rounded-2xl">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden border border-slate-50">
-                    <img 
-                      src={event.pro?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${event.pro?.full_name}`} 
-                      className="w-full h-full object-cover" 
-                      alt="Artista"
-                    />
+                  <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden border border-slate-50 flex items-center justify-center font-black text-[#2D1B69]">
+                    {new Date(event.event_date).getDate()}
                   </div>
                   <div>
-                    <h4 className="font-bold text-[#2D1B69]">{event.event_name}</h4>
-                    <p className="text-xs text-slate-500">{event.pro?.full_name} • {new Date(event.event_date).toLocaleDateString()}</p>
+                    <h4 className="font-bold text-[#2D1B69]">{event.name}</h4>
+                    <p className="text-xs text-slate-500">{new Date(event.event_date).toLocaleDateString()} - {event.total_contracts} contratos</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-right hidden sm:block">
                     <p className="text-[10px] font-black text-slate-400 uppercase">Valor</p>
-                    <p className="text-sm font-bold text-[#2D1B69]">R$ {Number(event.value).toLocaleString('pt-BR')}</p>
+                    <p className="text-sm font-bold text-[#2D1B69]">R$ {Number(event.total_value).toLocaleString("pt-BR")}</p>
                   </div>
                   <Badge className={cn(
                     "uppercase text-[10px] font-black px-3 py-1 rounded-full",
-                    event.status === 'PAID' || event.status === 'SIGNED' ? 'bg-emerald-50 text-emerald-600' : 
-                    event.status === 'PENDING' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-400'
+                    event.status === "CONFIRMADO" || event.status === "EM_EXECUCAO" || event.status === "FINALIZADO"
+                      ? "bg-emerald-50 text-emerald-600"
+                      : event.status === "EM_NEGOCIACAO"
+                        ? "bg-amber-50 text-amber-600"
+                        : "bg-slate-100 text-slate-400",
                   )}>
                     {event.status}
                   </Badge>
                   <Button variant="ghost" size="icon" asChild className="rounded-full hover:bg-purple-50 hover:text-[#2D1B69]">
-                    <Link to={`/app/contracts/${event.id}`}><ArrowRight className="w-4 h-4" /></Link>
+                    <Link to={`/app/events`}><ArrowRight className="w-4 h-4" /></Link>
                   </Button>
                 </div>
               </Card>

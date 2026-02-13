@@ -26,7 +26,9 @@ const ProposalModal = ({ isOpen, onClose, artist }: ProposalModalProps) => {
     eventName: "",
     eventDate: "",
     location: "",
-    details: ""
+    details: "",
+    durationMinutes: "",
+    notes: "",
   });
 
   const validate = () => {
@@ -34,6 +36,8 @@ const ProposalModal = ({ isOpen, onClose, artist }: ProposalModalProps) => {
     if (!formData.eventName.trim()) newErrors.eventName = "Dê um nome ao seu evento.";
     if (!formData.eventDate) newErrors.eventDate = "Selecione a data e hora.";
     if (!formData.location.trim()) newErrors.location = "Informe onde será o evento.";
+    if (!formData.details.trim()) newErrors.details = "Descreva o escopo do contrato.";
+    if (formData.durationMinutes && Number(formData.durationMinutes) <= 0) newErrors.durationMinutes = "Duração inválida.";
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -51,7 +55,12 @@ const ProposalModal = ({ isOpen, onClose, artist }: ProposalModalProps) => {
       const { data, error } = await supabase.functions.invoke('create-contract', {
         body: {
           proId: artist.id,
-          ...formData
+          eventName: formData.eventName,
+          eventDate: formData.eventDate,
+          location: formData.location,
+          details: formData.details,
+          durationMinutes: formData.durationMinutes ? Number(formData.durationMinutes) : undefined,
+          notes: formData.notes || undefined,
         }
       });
 
@@ -65,7 +74,14 @@ const ProposalModal = ({ isOpen, onClose, artist }: ProposalModalProps) => {
       setTimeout(() => {
         onClose();
         setSuccess(false);
-        setFormData({ eventName: "", eventDate: "", location: "", details: "" });
+        setFormData({
+          eventName: "",
+          eventDate: "",
+          location: "",
+          details: "",
+          durationMinutes: "",
+          notes: "",
+        });
       }, 2500);
     } catch (error: any) {
       showError(error.message);
@@ -139,12 +155,42 @@ const ProposalModal = ({ isOpen, onClose, artist }: ProposalModalProps) => {
                   onChange={(e) => setFormData({...formData, details: e.target.value})}
                   className="bg-slate-50 border-none rounded-2xl min-h-[100px]"
                 />
+                {errors.details && <p className="text-[10px] text-red-500 font-bold flex items-center gap-1"><AlertCircle size={10} /> {errors.details}</p>}
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase text-slate-400">Duração (min)</Label>
+                  <Input
+                    type="number"
+                    min="30"
+                    step="30"
+                    placeholder="120"
+                    value={formData.durationMinutes}
+                    onChange={(e) => setFormData({ ...formData, durationMinutes: e.target.value })}
+                    className={`bg-slate-50 border-none h-12 rounded-xl ${errors.durationMinutes ? 'ring-2 ring-red-500' : ''}`}
+                  />
+                  {errors.durationMinutes && <p className="text-[10px] text-red-500 font-bold flex items-center gap-1"><AlertCircle size={10} /> {errors.durationMinutes}</p>}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase text-slate-400">Observações</Label>
+                <Textarea
+                  placeholder="Logística, horários, rider técnico, etc."
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  className="bg-slate-50 border-none rounded-2xl min-h-[80px]"
+                />
               </div>
 
               <div className="p-4 bg-blue-50 rounded-2xl flex justify-between items-center border border-blue-100">
                 <span className="text-xs font-bold text-blue-700">Cachê Base Sugerido:</span>
                 <span className="text-lg font-black text-blue-600">R$ {Number(artist?.base_fee).toLocaleString('pt-BR')}</span>
               </div>
+              <p className="text-[11px] text-slate-500">
+                O cachê inicial é definido pelo profissional. O contratante pode enviar contraproposta após a proposta.
+              </p>
 
               <DialogFooter className="pt-4">
                 <Button type="submit" disabled={loading} className="w-full h-14 bg-blue-600 hover:bg-blue-700 rounded-2xl font-black text-lg shadow-xl shadow-blue-100">

@@ -32,7 +32,7 @@ const ClientMessages = () => {
         pro:profiles!contracts_profissional_profile_id_fkey(id, full_name, avatar_url)
       `)
       .eq('contratante_profile_id', user.id)
-      .in('status', ['PENDENTE', 'ACEITO', 'ASSINADO', 'PAGO', 'CONTRAPROPOSTA'])
+      .in('status', ['PROPOSTO', 'CONTRAPROPOSTA', 'AGUARDANDO_PAGAMENTO', 'PAGO_ESCROW', 'EM_EXECUCAO', 'CONCLUIDO', 'LIBERADO_FINANCEIRO'])
       .order('created_at', { ascending: false });
 
     if (error) {

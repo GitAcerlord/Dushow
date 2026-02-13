@@ -18,7 +18,6 @@ import ArtistProfile from "./pages/client/ArtistProfile"; // Agora público
 // Unified App Pages
 import Dashboard from "./pages/Dashboard";
 import Feed from "./pages/pro/Feed";
-import ProMessages from "./pages/pro/Messages";
 import ProContracts from "./pages/pro/Contracts";
 import ProFinance from "./pages/pro/Finance";
 import ProAgenda from "./pages/pro/Agenda";
@@ -27,9 +26,12 @@ import Discovery from "./pages/client/Discovery";
 import ClientEvents from "./pages/client/Events";
 import Favorites from "./pages/client/Favorites";
 import Profile from "./pages/client/Profile";
+import Checkout from "./pages/client/Checkout";
+import ClientPayments from "./pages/client/Payments";
 import ContractDetails from "./pages/pro/ContractDetails";
 import ClientPlans from "./pages/client/Plans";
 import ProducerDashboard from "./pages/producer/ProducerDashboard";
+import Messages from "./pages/Messages";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -55,6 +57,7 @@ const App = () => (
           <Route path="/register" element={<Register />} />
           <Route path="/about" element={<About />} />
           <Route path="/services" element={<Services />} />
+          <Route path="/discovery" element={<Discovery />} />
           <Route path="/artist/:id" element={<ArtistProfile />} />
           
           {/* Unified App Route (PRO & CLIENT) */}
@@ -66,13 +69,15 @@ const App = () => (
             <Route index element={<Dashboard />} />
             <Route path="profile" element={<Profile />} />
             <Route path="feed" element={<Feed />} />
-            <Route path="messages" element={<ProMessages />} />
+            <Route path="messages" element={<Messages />} />
             <Route path="contracts" element={<ProContracts />} />
             <Route path="contracts/:id" element={<ContractDetails />} />
             <Route path="finance" element={<ProFinance />} />
             <Route path="agenda" element={<ProAgenda />} />
             <Route path="discovery" element={<Discovery />} />
             <Route path="artist/:id" element={<ArtistProfile />} />
+            <Route path="checkout" element={<Checkout />} />
+            <Route path="payments" element={<ClientPayments />} />
             <Route path="events" element={<ClientEvents />} />
             <Route path="favorites" element={<Favorites />} />
             <Route path="plans" element={<ClientPlans />} />
