@@ -36,6 +36,7 @@ const AppSidebar = ({ profile }: any) => {
         { icon: FileText, label: 'Contratos', path: '/app/contracts' },
         { icon: Calendar, label: 'Agenda', path: '/app/agenda' },
         { icon: CreditCard, label: 'Financeiro', path: '/app/finance' },
+        { icon: Lock, label: 'Plano', path: '/app/plans' },
       ]
     },
     PRODUCER: {
@@ -57,6 +58,7 @@ const AppSidebar = ({ profile }: any) => {
         { icon: MessageSquare, label: 'Mensagens', path: '/app/messages' },
         { icon: Heart, label: 'Favoritos', path: '/app/favorites' },
         { icon: CreditCard, label: 'Pagamentos', path: '/app/payments' },
+        { icon: Lock, label: 'Plano', path: '/app/plans' },
       ]
     },
     CLIENT: {
@@ -68,6 +70,7 @@ const AppSidebar = ({ profile }: any) => {
         { icon: MessageSquare, label: 'Mensagens', path: '/app/messages' },
         { icon: Heart, label: 'Favoritos', path: '/app/favorites' },
         { icon: CreditCard, label: 'Pagamentos', path: '/app/payments' },
+        { icon: Lock, label: 'Plano', path: '/app/plans' },
       ]
     }
   };

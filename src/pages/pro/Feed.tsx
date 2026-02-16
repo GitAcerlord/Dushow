@@ -1,15 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, Zap, Image as ImageIcon, X } from "lucide-react";
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
-import { getSafeImageUrl } from '@/utils/url-validator';
-import PostCard from '@/components/feed/PostCard';
+import { getSafeImageUrl } from "@/utils/url-validator";
+import PostCard from "@/components/feed/PostCard";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const POSTS_PER_PAGE = 10;
@@ -33,7 +33,7 @@ const Feed = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user && pageNumber === 0) {
-        const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
         setUserProfile(profile);
       }
 
@@ -41,46 +41,78 @@ const Feed = () => {
       const to = from + POSTS_PER_PAGE - 1;
 
       const { data: postsData, error } = await supabase
-        .from('posts')
-        .select(`*, profiles:author_id (id, full_name, avatar_url, is_superstar, is_verified, category)`)
-        .order('created_at', { ascending: false })
+        .from("posts")
+        .select("*, profiles:author_id (id, full_name, avatar_url, is_superstar, is_verified, category)")
+        .order("created_at", { ascending: false })
         .range(from, to);
 
       if (error) throw error;
-      setPosts(prev => append ? [...prev, ...postsData] : postsData);
-    } catch (error: any) {
+      setPosts((prev) => (append ? [...prev, ...postsData] : postsData));
+    } catch {
       showError("Erro ao carregar o feed.");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchData(0); }, [fetchData]);
+  useEffect(() => {
+    fetchData(0);
+  }, [fetchData]);
 
   const handlePost = async () => {
     if (!postContent.trim() || !userProfile || isPosting) return;
     setIsPosting(true);
 
     try {
-      let imageUrl = null;
+      let imageUrl: string | null = null;
       if (selectedImage) {
-        const fileExt = selectedImage.name.split('.').pop();
+        const fileExt = selectedImage.name.split(".").pop();
         const fileName = `${userProfile.id}-${Math.random()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage.from('posts').upload(fileName, selectedImage);
+        const { error: uploadError } = await supabase.storage.from("posts").upload(fileName, selectedImage);
         if (uploadError) throw uploadError;
-        const { data: { publicUrl } } = supabase.storage.from('posts').getPublicUrl(fileName);
+        const { data: { publicUrl } } = supabase.storage.from("posts").getPublicUrl(fileName);
         imageUrl = publicUrl;
       }
 
-      const { error: postError } = await supabase.from('posts').insert({
-        author_id: userProfile.id,
-        content: postContent,
-        image_url: imageUrl
-      });
-      if (postError) throw postError;
+      let edgeFailed = false;
+      try {
+        const { error: postError } = await supabase.functions.invoke("create-post", {
+          body: {
+            content: postContent,
+            imageUrl,
+          },
+        });
+        if (postError) edgeFailed = true;
+      } catch {
+        edgeFailed = true;
+      }
+
+      if (edgeFailed) {
+        const { data: fallbackPost, error: fallbackError } = await supabase
+          .from("posts")
+          .insert({
+            author_id: userProfile.id,
+            content: postContent,
+            image_url: imageUrl,
+          })
+          .select("id")
+          .single();
+        if (fallbackError || !fallbackPost) throw fallbackError || new Error("Falha ao publicar post.");
+
+        const points = imageUrl ? 7 : 2;
+        const { error: xpError } = await supabase.from("xp_transactions").insert({
+          profile_id: userProfile.id,
+          action: "POST_CREATED",
+          points,
+          post_id: fallbackPost.id,
+        });
+        if (xpError) console.warn("Falha fallback XP:", xpError.message);
+      }
 
       showSuccess("Publicado com sucesso.");
-      setPostContent(""); setSelectedImage(null); setImagePreview(null);
+      setPostContent("");
+      setSelectedImage(null);
+      setImagePreview(null);
       fetchData(0);
     } catch (error: any) {
       showError(error.message || "Erro ao publicar o post.");
@@ -91,15 +123,14 @@ const Feed = () => {
 
   const handleDeletePost = async (postId: string) => {
     if (!confirm("Excluir permanentemente? Isso estorna o XP ganho pelo post.")) return;
-    
-    try {
-      const { error } = await supabase.functions.invoke('delete-post', {
-        body: { postId }
-      });
 
+    try {
+      const { error } = await supabase.functions.invoke("delete-post", {
+        body: { postId },
+      });
       if (error) throw error;
 
-      setPosts(prev => prev.filter(p => p.id !== postId));
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
       showSuccess("Post removido e XP estornado.");
     } catch (error: any) {
       showError(error.message || "Erro ao excluir post.");
@@ -116,13 +147,12 @@ const Feed = () => {
     setIsUpdating(true);
     try {
       const { error } = await supabase
-        .from('posts')
+        .from("posts")
         .update({ content: editContent, updated_at: new Date().toISOString() })
-        .eq('id', editingPost.id);
-
+        .eq("id", editingPost.id);
       if (error) throw error;
-      
-      setPosts(prev => prev.map(p => p.id === editingPost.id ? { ...p, content: editContent } : p));
+
+      setPosts((prev) => prev.map((p) => (p.id === editingPost.id ? { ...p, content: editContent } : p)));
       showSuccess("Post atualizado!");
       setEditingPost(null);
     } catch (error: any) {
@@ -138,28 +168,39 @@ const Feed = () => {
     <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6">
       <Card className="p-6 border-none shadow-sm bg-white rounded-[2rem]">
         <div className="flex gap-4">
-          <Avatar><AvatarImage src={getSafeImageUrl(userProfile?.avatar_url, '')} /></Avatar>
+          <Avatar><AvatarImage src={getSafeImageUrl(userProfile?.avatar_url, "")} /></Avatar>
           <div className="flex-1 space-y-4">
-            <Textarea 
-              placeholder="O que há de novo no seu show?" 
+            <Textarea
+              placeholder="O que há de novo no seu show?"
               value={postContent}
               onChange={(e) => setPostContent(e.target.value)}
               className="border-none bg-slate-50 rounded-2xl focus-visible:ring-[#2D1B69] min-h-[100px]"
             />
-            
+
             {imagePreview && (
               <div className="relative rounded-2xl overflow-hidden border border-slate-100">
                 <img src={imagePreview} className="w-full h-48 object-cover" alt="Preview" />
-                <button onClick={() => {setSelectedImage(null); setImagePreview(null);}} className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full"><X className="w-4 h-4" /></button>
+                <button onClick={() => { setSelectedImage(null); setImagePreview(null); }} className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             )}
 
             <div className="flex justify-between items-center pt-2">
               <div className="flex gap-2">
-                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) { setSelectedImage(file); setImagePreview(URL.createObjectURL(file)); }
-                }} />
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setSelectedImage(file);
+                      setImagePreview(URL.createObjectURL(file));
+                    }
+                  }}
+                />
                 <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} className="text-slate-500 gap-2 hover:bg-indigo-50 hover:text-[#2D1B69] rounded-xl">
                   <ImageIcon className="w-4 h-4" /> Foto
                 </Button>
@@ -175,13 +216,7 @@ const Feed = () => {
 
       <div className="space-y-6">
         {posts.map((post) => (
-          <PostCard 
-            key={post.id} 
-            post={post} 
-            currentUserId={userProfile?.id} 
-            onDelete={handleDeletePost} 
-            onEdit={handleOpenEdit} 
-          />
+          <PostCard key={post.id} post={post} currentUserId={userProfile?.id} onDelete={handleDeletePost} onEdit={handleOpenEdit} />
         ))}
       </div>
 
@@ -191,7 +226,7 @@ const Feed = () => {
             <DialogTitle className="text-xl font-black text-[#2D1B69]">Editar Publicação</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <Textarea 
+            <Textarea
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
               className="min-h-[150px] bg-slate-50 border-none rounded-2xl focus-visible:ring-[#2D1B69]"

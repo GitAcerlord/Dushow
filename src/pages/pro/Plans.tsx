@@ -57,6 +57,7 @@ const Plans = () => {
         {PRO_PLANS.map((plan: any) => {
           const isCurrent = (profile?.plan_tier || 'free') === plan.id;
           const price = isAnnual ? plan.annual : plan.monthly;
+          const chargeAmount = isAnnual ? Number((plan.annual * 12).toFixed(2)) : plan.monthly;
 
           return (
             <Card key={plan.id} className={cn(
@@ -89,7 +90,7 @@ const Plans = () => {
               </div>
 
               <Button 
-                onClick={() => navigate('/app/plans/checkout', { state: { plan, isAnnual } })} 
+                onClick={() => navigate('/app/plans/checkout', { state: { plan: { ...plan, price: chargeAmount }, isAnnual } })} 
                 disabled={isCurrent || plan.id === 'free'}
                 className={cn(
                   "w-full h-14 rounded-2xl font-black text-lg",

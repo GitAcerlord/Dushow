@@ -7,11 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
-  Calendar as CalendarIcon, 
   ChevronLeft, 
   ChevronRight, 
   Plus, 
-  MapPin, 
   Lock, 
   Loader2, 
   Trash2 
@@ -29,12 +27,33 @@ import {
   endOfWeek, 
   isSameMonth, 
   isSameDay, 
-  addDays, 
   eachDayOfInterval 
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const ProAgenda = () => {
+  const toDayKey = (value: string | Date) => {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+      const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
+      if (match?.[1]) return match[1];
+      const parsedFromString = new Date(trimmed);
+      if (!Number.isNaN(parsedFromString.getTime())) return parsedFromString.toISOString().slice(0, 10);
+    }
+
+    const parsed = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "";
+    return parsed.toISOString().slice(0, 10);
+  };
+
+  const formatPtBrDate = (value: string | Date) => {
+    const key = toDayKey(value);
+    if (!key) return "";
+    const [year, month, day] = key.split("-");
+    return `${day}/${month}/${year}`;
+  };
+
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState<any[]>([]);
   const [blocks, setBlocks] = useState<any[]>([]);
@@ -69,11 +88,27 @@ const ProAgenda = () => {
 
   const handleAddBlock = async () => {
     try {
+      if (!newBlock.start_date || !newBlock.end_date) {
+        showError("Informe data inicial e final.");
+        return;
+      }
+
+      const startDay = toDayKey(newBlock.start_date);
+      const endDay = toDayKey(newBlock.end_date);
+      if (!startDay || !endDay) {
+        showError("Datas invalidas.");
+        return;
+      }
+      if (endDay < startDay) {
+        showError("A data final não pode ser anterior à inicial.");
+        return;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase.from('availability_blocks').insert({
         profile_id: user?.id,
-        start_date: new Date(newBlock.start_date).toISOString(),
-        end_date: new Date(newBlock.end_date).toISOString(),
+        start_date: `${startDay}T00:00:00.000Z`,
+        end_date: `${endDay}T23:59:59.999Z`,
         reason: newBlock.reason
       });
       if (error) throw error;
@@ -86,9 +121,14 @@ const ProAgenda = () => {
   };
 
   const deleteBlock = async (id: string) => {
-    await supabase.from('availability_blocks').delete().eq('id', id);
-    setBlocks(blocks.filter(b => b.id !== id));
-    showSuccess("Bloqueio removido.");
+    try {
+      const { error } = await supabase.from('availability_blocks').delete().eq('id', id);
+      if (error) throw error;
+      setBlocks(blocks.filter(b => b.id !== id));
+      showSuccess("Bloqueio removido.");
+    } catch (e: any) {
+      showError(e.message || "Falha ao remover bloqueio.");
+    }
   };
 
   // Lógica do Calendário
@@ -155,7 +195,13 @@ const ProAgenda = () => {
           ))}
           {calendarDays.map((day, i) => {
             const dayEvents = events.filter(e => isSameDay(new Date(e.data_evento), day));
-            const dayBlocks = blocks.filter(b => isSameDay(new Date(b.start_date), day));
+            const dayKey = format(day, "yyyy-MM-dd");
+            const dayBlocks = blocks.filter((b) => {
+              const startKey = toDayKey(b.start_date);
+              const endKey = toDayKey(b.end_date);
+              if (!startKey || !endKey) return false;
+              return dayKey >= startKey && dayKey <= endKey;
+            });
             const isToday = isSameDay(day, new Date());
 
             return (
@@ -192,6 +238,35 @@ const ProAgenda = () => {
             );
           })}
         </div>
+      </Card>
+
+      <Card className="p-6 border-none shadow-sm bg-white rounded-[2.5rem]">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-black text-[#2D1B69]">Bloqueios Cadastrados</h3>
+          <Badge variant="outline">{blocks.length} bloqueio(s)</Badge>
+        </div>
+        {blocks.length === 0 ? (
+          <p className="text-sm text-slate-500">Nenhuma data bloqueada.</p>
+        ) : (
+          <div className="space-y-2">
+            {blocks
+              .slice()
+              .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
+              .map((block) => (
+                <div key={block.id} className="flex items-center justify-between p-3 border rounded-xl">
+                  <div className="text-sm">
+                    <p className="font-bold text-slate-800">
+                      {formatPtBrDate(block.start_date)} - {formatPtBrDate(block.end_date)}
+                    </p>
+                    <p className="text-slate-500">{block.reason || "Indisponivel"}</p>
+                  </div>
+                  <Button variant="outline" className="border-red-200 text-red-600" onClick={() => deleteBlock(block.id)}>
+                    <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                  </Button>
+                </div>
+              ))}
+          </div>
+        )}
       </Card>
     </div>
   );

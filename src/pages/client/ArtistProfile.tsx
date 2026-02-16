@@ -31,6 +31,13 @@ const ArtistProfile = () => {
     setLoading(true);
     try {
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', id).single();
+      const { data: authData } = await supabase.auth.getUser();
+      const viewerId = authData.user?.id;
+      if (!profile || (profile.pref_public_profile === false && viewerId !== profile.id)) {
+        showError("Este perfil está indisponível no momento.");
+        navigate(-1);
+        return;
+      }
       setArtist(profile);
       const { data: reviewsData } = await supabase.from('reviews').select('*, profiles:client_id(full_name, avatar_url), contracts:contract_id(event_name)').eq('pro_id', id);
       setReviews(reviewsData || []);
@@ -63,14 +70,54 @@ const ArtistProfile = () => {
 
   const handleToggleFavorite = async () => {
     if (!(await ensureLoggedIn())) return;
-    const { data, error } = await supabase.functions.invoke('toggle-favorite', { body: { artistId: id } });
-    if (error) return showError("Falha ao atualizar favorito.");
-    setIsFavorited(Boolean(data?.favorited));
-    showSuccess(data?.favorited ? "Adicionado aos favoritos." : "Removido dos favoritos.");
+    try {
+      const { data, error } = await supabase.functions.invoke('toggle-favorite', { body: { artistId: id } });
+      if (error) throw error;
+      setIsFavorited(Boolean(data?.favorited));
+      showSuccess(data?.favorited ? "Adicionado aos favoritos." : "Removido dos favoritos.");
+    } catch {
+      // Fallback sem Edge Function para evitar indisponibilidade de rede/função.
+      const { data: authData } = await supabase.auth.getUser();
+      const user = authData.user;
+      if (!user || !id) return showError("Falha ao atualizar favorito.");
+
+      const { data: exists, error: checkError } = await supabase
+        .from("favorites")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("artist_id", id)
+        .limit(1);
+
+      if (checkError) return showError("Falha ao atualizar favorito.");
+
+      if ((exists || []).length > 0) {
+        const favoriteId = exists?.[0]?.id;
+        if (!favoriteId) return showError("Falha ao atualizar favorito.");
+        const { error: delError } = await supabase.from("favorites").delete().eq("id", favoriteId);
+        if (delError) return showError("Falha ao atualizar favorito.");
+        setIsFavorited(false);
+        showSuccess("Removido dos favoritos.");
+        return;
+      }
+
+      const { error: insError } = await supabase.from("favorites").insert({
+        user_id: user.id,
+        artist_id: id,
+      });
+      if (insError) return showError("Falha ao atualizar favorito.");
+
+      setIsFavorited(true);
+      showSuccess("Adicionado aos favoritos.");
+    }
   };
 
   const handleOpenProposal = async () => {
     if (!(await ensureLoggedIn())) return;
+    const { data: authData } = await supabase.auth.getUser();
+    if (authData.user?.id === artist?.id) {
+      showError("Não é possível solicitar proposta para o próprio perfil.");
+      return;
+    }
     setIsProposalOpen(true);
   };
 
@@ -100,10 +147,49 @@ const ArtistProfile = () => {
                   <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {artist.location}</span>
                   <span className="flex items-center gap-1 text-[#FFB703]"><Star className="w-4 h-4 fill-current" /> {artist.rating}</span>
                 </div>
+                {Array.isArray(artist.subcategorias) && artist.subcategorias.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {artist.subcategorias.map((eventType: string) => (
+                      <Badge key={eventType} variant="outline" className="rounded-full">
+                        {eventType}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
                 <p className="text-slate-600 leading-relaxed">{artist.bio}</p>
               </div>
             </div>
           </Card>
+
+          <div className="space-y-6">
+            <h3 className="text-2xl font-black text-[#2D1B69]">Portfólio</h3>
+            {Array.isArray(artist.portfolio_urls) && artist.portfolio_urls.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {artist.portfolio_urls.map((url: string, index: number) => {
+                  const isPdf = String(url).toLowerCase().endsWith(".pdf");
+                  return (
+                    <a
+                      key={`${url}-${index}`}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block rounded-2xl overflow-hidden border border-slate-100 bg-slate-50 aspect-square"
+                    >
+                      {isPdf ? (
+                        <div className="w-full h-full flex items-center justify-center text-xs font-bold text-slate-500 px-3 text-center">
+                          PDF do Portfólio
+                        </div>
+                      ) : (
+                        <img src={url} className="w-full h-full object-cover" alt={`Portfólio ${index + 1}`} />
+                      )}
+                    </a>
+                  );
+                })}
+              </div>
+            ) : (
+              <Card className="p-6 text-sm text-slate-500">Este profissional ainda não publicou itens de portfólio.</Card>
+            )}
+          </div>
 
           <div className="space-y-6">
             <h3 className="text-2xl font-black text-[#2D1B69]">Avaliações</h3>

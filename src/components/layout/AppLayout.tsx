@@ -19,6 +19,11 @@ const AppLayout = () => {
     
     const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
     setProfile(data);
+    if (data?.pref_dark_mode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
     setLoading(false);
   };
 

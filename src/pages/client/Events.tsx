@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Calendar, MapPin, FileText, Loader2, Filter, Plus, Users } from "lucide-react";
+import { Calendar, MapPin, FileText, Loader2, Filter, Plus, Users, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
@@ -58,11 +58,28 @@ const ClientEvents = () => {
       return;
     }
     setCreating(true);
+    const eventIso = new Date(newEvent.eventDate).toISOString();
     try {
-      const { data, error } = await supabase.functions.invoke("create-client-event", {
+      const { error } = await supabase.functions.invoke("create-client-event", {
         body: newEvent,
       });
-      if (error) throw error;
+      if (error) {
+        // Fallback: se a Edge Function estiver indisponível, grava direto com RLS do próprio usuário.
+        const { data: authData } = await supabase.auth.getUser();
+        const user = authData.user;
+        if (!user) throw error;
+
+        const { error: directInsertError } = await supabase.from("client_events").insert({
+          contratante_profile_id: user.id,
+          name: newEvent.name,
+          event_date: eventIso,
+          location: newEvent.location,
+          status: "PLANEJAMENTO",
+        });
+
+        if (directInsertError) throw directInsertError;
+      }
+
       showSuccess("Evento criado em planejamento.");
       setOpenCreate(false);
       setNewEvent({ name: "", eventDate: "", location: "" });
@@ -72,6 +89,24 @@ const ClientEvents = () => {
     } finally {
       setCreating(false);
     }
+  };
+
+  const deleteEvent = async (event: any) => {
+    if (Number(event.total_contracts || 0) > 0) {
+      showError("Não é possível excluir evento com contratos vinculados.");
+      return;
+    }
+
+    if (!window.confirm(`Excluir o evento "${event.name}"?`)) return;
+
+    const { error } = await supabase.from("client_events").delete().eq("id", event.id);
+    if (error) {
+      showError(error.message || "Falha ao excluir evento.");
+      return;
+    }
+
+    setEvents((prev) => prev.filter((row) => row.id !== event.id));
+    showSuccess("Evento excluído.");
   };
 
   if (loading && events.length === 0) {
@@ -153,6 +188,13 @@ const ClientEvents = () => {
               <div className="flex gap-2 w-full md:w-auto">
                 <Button variant="outline" asChild className="rounded-xl gap-2 border-slate-200 text-slate-600 flex-1 md:flex-none font-bold">
                   <Link to={`/app/discovery`}><FileText className="w-4 h-4" /> Adicionar Profissional</Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => deleteEvent(event)}
+                  className="rounded-xl gap-2 border-red-200 text-red-600 flex-1 md:flex-none font-bold"
+                >
+                  <Trash2 className="w-4 h-4" /> Excluir
                 </Button>
               </div>
             </Card>

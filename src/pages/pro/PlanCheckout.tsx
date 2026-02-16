@@ -26,6 +26,8 @@ const PlanCheckout = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   
   const plan = location.state?.plan;
+  const isAnnual = Boolean(location.state?.isAnnual);
+  const chargeAmount = Number(plan?.price ?? plan?.monthly ?? 0);
 
   useEffect(() => {
     fetchCards();
@@ -59,7 +61,8 @@ const PlanCheckout = () => {
       const { data, error } = await supabase.functions.invoke('process-subscription', {
         body: { 
           planId: plan.id,
-          paymentMethodId: selectedCardId
+          paymentMethodId: selectedCardId,
+          isAnnual
         }
       });
 
@@ -143,7 +146,7 @@ const PlanCheckout = () => {
             </div>
 
             <Button onClick={handlePayment} disabled={loading || !selectedCardId} className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-lg font-black rounded-2xl shadow-xl">
-              {loading ? <Loader2 className="animate-spin" /> : `Pagar ${plan.price || plan.monthly}`}
+              {loading ? <Loader2 className="animate-spin" /> : `Pagar R$ ${chargeAmount.toLocaleString('pt-BR')}`}
             </Button>
           </Card>
         </div>
@@ -156,8 +159,9 @@ const PlanCheckout = () => {
           </div>
           <div className="pt-4 border-t border-white/10 flex justify-between items-end">
             <span className="font-bold">Total</span>
-            <span className="text-3xl font-black text-indigo-400">R$ {(plan.price || plan.monthly).toLocaleString('pt-BR')}</span>
+            <span className="text-3xl font-black text-indigo-400">R$ {chargeAmount.toLocaleString('pt-BR')}</span>
           </div>
+          {isAnnual && <p className="text-xs text-slate-300 mt-2">Cobrança anual em uma única transação (12 meses).</p>}
           <div className="mt-6 flex items-center gap-2 text-[10px] text-slate-400">
             <Lock className="w-3 h-3" />
             Processamento criptografado via backend seguro.

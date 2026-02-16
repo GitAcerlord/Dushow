@@ -6,6 +6,42 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const sendEmailIfEnabled = async (
+  supabase: any,
+  profileId: string,
+  subject: string,
+  html: string,
+) => {
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("email, pref_email_notifications")
+      .eq("id", profileId)
+      .single();
+    if (!profile?.email || profile?.pref_email_notifications === false) return;
+
+    const apiKey = Deno.env.get("RESEND_API_KEY") ?? "";
+    const from = Deno.env.get("RESEND_FROM_EMAIL") ?? "";
+    if (!apiKey || !from) return;
+
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        from,
+        to: [profile.email],
+        subject,
+        html,
+      }),
+    });
+  } catch (_e) {
+    // Nao bloqueia o fluxo principal por falha de email.
+  }
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -104,35 +140,60 @@ serve(async (req) => {
       }
     }
 
-    const { data: contract, error: contractError } = await supabase
+    const payloadBase = {
+      client_event_id: resolvedEventId,
+      contratante_profile_id: user.id,
+      profissional_profile_id: proId,
+      created_by_profile_id: user.id,
+      event_name: eventName,
+      data_evento: eventIso,
+      event_date: eventIso,
+      event_location: location,
+      descricao: details,
+      contract_text: details,
+      valor_atual: baseFee,
+      valor_original: baseFee,
+      proposed_value: baseFee,
+      value: baseFee,
+      duration_minutes: normalizedDuration,
+      notes: notes ?? null,
+      status: "PROPOSTO",
+      status_v1: "PROPOSTA_ENVIADA",
+      status_master: "PROPOSTO",
+    };
+
+    let contract: any = null;
+    let contractError: any = null;
+
+    const firstTry = await supabase
       .from("contracts")
-      .insert({
-        client_event_id: resolvedEventId,
-        contratante_profile_id: user.id,
-        profissional_profile_id: proId,
-        created_by_profile_id: user.id,
-        client_id: user.id,
-        pro_id: proId,
-        event_name: eventName,
-        data_evento: eventIso,
-        event_date: eventIso,
-        local: location,
-        event_location: location,
-        descricao: details,
-        contract_text: details,
-        valor_atual: baseFee,
-        valor_original: baseFee,
-        proposed_value: baseFee,
-        value: baseFee,
-        duration_minutes: normalizedDuration,
-        notes: notes ?? null,
-        status: "PROPOSTO",
-        status_v1: "PROPOSTA_ENVIADA",
-        status_master: "PROPOSTO",
-      })
+      .insert({ ...payloadBase, local: location })
       .select()
       .single();
-    if (contractError) throw contractError;
+    contract = firstTry.data;
+    contractError = firstTry.error;
+
+    const msg = String(contractError?.message || "");
+    const hasLegacySchemaError =
+      msg.includes('has no field "local"') ||
+      msg.includes('column "local" of relation "contracts" does not exist');
+
+    if (contractError && hasLegacySchemaError) {
+      const secondTry = await supabase
+        .from("contracts")
+        .insert({ ...payloadBase, client_id: user.id, pro_id: proId })
+        .select()
+        .single();
+      contract = secondTry.data;
+      contractError = secondTry.error;
+    }
+
+    const contractErrorMsg = String(contractError?.message || "");
+    if (contractError && contractErrorMsg.includes("check_different_parties")) {
+      throw new Error("Não é permitido criar proposta para o próprio perfil.");
+    }
+
+    if (contractError || !contract) throw contractError || new Error("Falha ao criar contrato.");
 
     await supabase.from("notifications").insert({
       user_id: proId,
@@ -141,6 +202,13 @@ serve(async (req) => {
       type: "CONTRACT_PROPOSAL",
       link: `/app/contracts/${contract.id}`,
     });
+
+    await sendEmailIfEnabled(
+      supabase,
+      proId,
+      "Nova proposta recebida",
+      `<p>Voce recebeu uma proposta para o evento <strong>${eventName}</strong>.</p>`,
+    );
 
     return new Response(JSON.stringify(contract), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

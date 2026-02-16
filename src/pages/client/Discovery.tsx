@@ -15,10 +15,12 @@ import { cn } from '@/lib/utils';
 const Discovery = () => {
   const navigate = useNavigate();
   const [categories, setCategories] = useState<any[]>([]);
+  const [profileCategories, setProfileCategories] = useState<any[]>([]);
   const [artists, setArtists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [locationTerm, setLocationTerm] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -27,20 +29,44 @@ const Discovery = () => {
   const fetchData = async () => {
     setLoading(true);
     const { data: cats } = await supabase.from('professional_categories').select('*').order('order');
+    const { data: links } = await supabase.from('profile_professional_categories').select('profile_id, category_id');
     const { data: pros } = await supabase
       .from('profiles')
       .select('*')
       .eq('role', 'PRO')
       .eq('is_active', true)
+      .or('pref_public_profile.is.null,pref_public_profile.eq.true')
       .not('avatar_url', 'is', null)
       .neq('avatar_url', '')
       .order('is_superstar', { ascending: false });
     setCategories(cats || []);
+    setProfileCategories(links || []);
     setArtists(pros || []);
     setLoading(false);
   };
 
-  const filteredArtists = artists.filter(a => a.full_name?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const selectedCategory = categories.find((cat) => cat.slug === activeTab);
+  const filteredArtists = artists.filter((artist) => {
+    const term = searchTerm.trim().toLowerCase();
+    const matchesSearch = !term || artist.full_name?.toLowerCase().includes(term);
+    if (!matchesSearch) return false;
+    const loc = locationTerm.trim().toLowerCase();
+    const matchesLocation = !loc || String(artist.location || "").toLowerCase().includes(loc);
+    if (!matchesLocation) return false;
+
+    if (activeTab === "all") return true;
+
+    const linkedToCategory = selectedCategory
+      ? profileCategories.some((row) => row.profile_id === artist.id && row.category_id === selectedCategory.id)
+      : false;
+    const profileCategory = String(artist.category || artist.categoria_principal || "").toLowerCase();
+    const matchesLegacyCategory = selectedCategory
+      ? profileCategory.includes(String(selectedCategory.title || "").toLowerCase()) ||
+        profileCategory.includes(String(selectedCategory.slug || "").toLowerCase())
+      : false;
+
+    return linkedToCategory || matchesLegacyCategory;
+  });
 
   return (
     <div className="space-y-8">
@@ -58,9 +84,18 @@ const Discovery = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        <div className="relative w-full lg:max-w-sm">
+          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+          <Input
+            className="pl-12 h-14 bg-white rounded-2xl border-none shadow-sm focus-visible:ring-[#2D1B69]"
+            placeholder="Filtrar por cidade/região..."
+            value={locationTerm}
+            onChange={(e) => setLocationTerm(e.target.value)}
+          />
+        </div>
       </div>
 
-      <Tabs defaultValue="all" className="w-full overflow-x-auto">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full overflow-x-auto">
         <TabsList className="bg-transparent h-auto flex justify-start gap-2 p-0">
           <TabsTrigger value="all" className="rounded-full px-6 py-2.5 data-[state=active]:bg-[#2D1B69] data-[state=active]:text-white border-2 border-slate-100 font-bold">Todos</TabsTrigger>
           {categories.map(cat => (

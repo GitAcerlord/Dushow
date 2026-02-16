@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Check, Zap, ShieldCheck, Star, Loader2, Percent } from "lucide-react";
+import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from '@/integrations/supabase/client';
 
 const CLIENT_PLANS = [
   { 
@@ -34,7 +36,27 @@ const CLIENT_PLANS = [
 ];
 
 const ClientPlans = () => {
+  const navigate = useNavigate();
   const [isAnnual, setIsAnnual] = useState(false);
+  const [profilePlan, setProfilePlan] = useState("free");
+
+  React.useEffect(() => {
+    const fetchPlan = async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      const user = authData.user;
+      if (!user) return;
+
+      const { data } = await supabase.from("profiles").select("plan_tier").eq("id", user.id).single();
+      setProfilePlan(data?.plan_tier || "free");
+    };
+    fetchPlan();
+  }, []);
+
+  const getCheckoutPlan = (plan: any) => {
+    if (plan.id === "plus") return { ...plan, id: "pro" };
+    if (plan.id === "business") return { ...plan, id: "elite" };
+    return { ...plan, id: "free" };
+  };
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-12">
@@ -55,10 +77,15 @@ const ClientPlans = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {CLIENT_PLANS.map((plan) => {
           const price = isAnnual ? plan.annual : plan.monthly;
+          const chargeAmount = isAnnual ? Number((plan.annual * 12).toFixed(2)) : plan.monthly;
+          const checkoutPlan = getCheckoutPlan(plan);
+          const isCurrent = checkoutPlan.id === profilePlan;
+
           return (
             <Card key={plan.id} className={cn(
               "p-8 border-none shadow-xl flex flex-col relative overflow-hidden transition-all",
-              plan.popular ? "ring-4 ring-blue-600 bg-white scale-105 z-10" : "bg-white/80"
+              plan.popular ? "ring-4 ring-blue-600 bg-white scale-105 z-10" : "bg-white/80",
+              isCurrent && "ring-4 ring-emerald-500"
             )}>
               {plan.popular && (
                 <div className="absolute top-0 right-0 bg-blue-600 text-white px-4 py-1 rounded-bl-xl text-[10px] font-black uppercase">
@@ -87,9 +114,12 @@ const ClientPlans = () => {
 
               <Button className={cn(
                 "w-full h-14 rounded-2xl font-black text-lg shadow-lg transition-all",
-                plan.id === 'free' ? "bg-slate-100 text-slate-400 cursor-default" : "bg-blue-600 hover:bg-blue-700"
-              )}>
-                {plan.id === 'free' ? "Plano Atual" : "Fazer Upgrade"}
+                isCurrent ? "bg-emerald-500 hover:bg-emerald-600" : plan.id === 'free' ? "bg-slate-100 text-slate-400 cursor-default" : "bg-blue-600 hover:bg-blue-700"
+              )}
+              disabled={isCurrent || plan.id === "free"}
+              onClick={() => navigate("/app/plans/checkout", { state: { plan: { ...checkoutPlan, price: chargeAmount }, isAnnual } })}
+              >
+                {isCurrent ? "Plano Atual" : "Fazer Upgrade"}
               </Button>
             </Card>
           );

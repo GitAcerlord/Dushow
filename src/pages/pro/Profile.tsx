@@ -15,7 +15,6 @@ import {
   Save, 
   X, 
   Loader2, 
-  Wallet, 
   DollarSign, 
   ShieldCheck,
   Layout,
@@ -88,10 +87,21 @@ const ProProfile = () => {
 
       setUploading(true);
       const fileName = `${profile.id}/portfolio/${Math.random()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage.from('portfolios').upload(fileName, file);
-      if (uploadError) throw uploadError;
+      const bucketCandidates = ['portfolios', 'portfolio', 'uploads', 'avatars'];
+      let publicUrl: string | null = null;
+      let lastUploadError: any = null;
 
-      const { data: { publicUrl } } = supabase.storage.from('portfolios').getPublicUrl(fileName);
+      for (const bucket of bucketCandidates) {
+        const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, file);
+        if (!uploadError) {
+          const { data: { publicUrl: url } } = supabase.storage.from(bucket).getPublicUrl(fileName);
+          publicUrl = url;
+          break;
+        }
+        lastUploadError = uploadError;
+      }
+
+      if (!publicUrl) throw lastUploadError || new Error("Nenhum bucket de upload disponível.");
       
       const newPortfolio = [...(profile.portfolio_urls || []), publicUrl];
       const { error: updateError } = await supabase.from('profiles').update({ portfolio_urls: newPortfolio }).eq('id', profile.id);
@@ -100,7 +110,7 @@ const ProProfile = () => {
       setProfile({ ...profile, portfolio_urls: newPortfolio });
       showSuccess("Item adicionado ao portfólio!");
     } catch (e: any) {
-      showError("Erro no upload do portfólio.");
+      showError(e?.message || "Erro no upload do portfólio.");
     } finally {
       setUploading(false);
     }
@@ -117,13 +127,22 @@ const ProProfile = () => {
 
   const handleSave = async () => {
     try {
-      const { error } = await supabase.from('profiles').update({
+      const payload: any = {
         full_name: formData.full_name,
+        email: formData.email,
         bio: formData.bio,
         location: formData.location,
-        base_fee: formData.base_fee,
-        asaas_wallet_id: formData.asaas_wallet_id
-      }).eq('id', profile.id);
+        base_fee: formData.base_fee
+      };
+
+      if (Object.prototype.hasOwnProperty.call(profile || {}, "subcategorias")) {
+        payload.subcategorias = String(formData.event_types_text || "")
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+
+      const { error } = await supabase.from('profiles').update(payload).eq('id', profile.id);
 
       if (error) throw error;
       setProfile(formData);
@@ -164,6 +183,24 @@ const ProProfile = () => {
                       <Label className="text-[10px] font-black uppercase text-slate-400">Cachê Base (R$)</Label>
                       <Input type="number" value={formData.base_fee} onChange={(e) => setFormData({...formData, base_fee: e.target.value})} className="bg-blue-50 border-none h-12 rounded-xl font-bold text-blue-600" />
                     </div>
+                    <div className="space-y-1 md:col-span-2">
+                      <Label className="text-[10px] font-black uppercase text-slate-400">E-mail de Contato</Label>
+                      <Input
+                        value={formData.email || ''}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className="bg-slate-50 border-none h-12 rounded-xl"
+                        placeholder="seu@email.com"
+                      />
+                    </div>
+                    <div className="space-y-1 md:col-span-2">
+                      <Label className="text-[10px] font-black uppercase text-slate-400">Tipos de Eventos Realizados</Label>
+                      <Input
+                        value={formData.event_types_text ?? ((formData.subcategorias || []).join(", "))}
+                        onChange={(e) => setFormData({ ...formData, event_types_text: e.target.value })}
+                        className="bg-slate-50 border-none h-12 rounded-xl"
+                        placeholder="Casamento, Corporativo, Festival..."
+                      />
+                    </div>
                   </div>
                 ) : (
                   <>
@@ -203,7 +240,7 @@ const ProProfile = () => {
               <Layout className="text-[#FFB703]" /> Portfólio & Materiais
             </h3>
             <div className="flex gap-2">
-              <input type="file" ref={portfolioInputRef} className="hidden" accept="image/*,application/pdf" onChange={handlePortfolioUpload} />
+              <input type="file" ref={portfolioInputRef} className="hidden" accept="image/*" onChange={handlePortfolioUpload} />
               <Button onClick={() => portfolioInputRef.current?.click()} className="bg-[#2D1B69] rounded-xl gap-2">
                 {uploading ? <Loader2 className="animate-spin" /> : <Upload className="w-4 h-4" />} Adicionar Item
               </Button>
@@ -237,27 +274,31 @@ const ProProfile = () => {
             {(!profile.portfolio_urls || profile.portfolio_urls.length === 0) && (
               <div className="col-span-full py-10 text-center text-slate-400 border-2 border-dashed border-slate-100 rounded-[2.5rem]">
                 <ImageIcon className="mx-auto mb-2 opacity-20" size={40} />
-                <p className="text-xs font-medium">Faça upload de fotos ou PDFs de apresentação.</p>
+                <p className="text-xs font-medium">Faça upload de fotos do seu portfólio.</p>
               </div>
             )}
+          </div>
+
+          <div className="pt-4 border-t space-y-4">
+            <h4 className="text-sm font-black text-slate-900 uppercase tracking-wide">Tags e Tipos de Evento (Categorias Oficiais)</h4>
+            {profile?.id ? <CategorySelector profileId={profile.id} onSave={fetchProfile} /> : null}
           </div>
         </Card>
 
         <div className="space-y-6">
           <Card className="p-8 border-none shadow-xl bg-slate-900 text-white rounded-[2.5rem] space-y-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-[#2D1B69] rounded-lg text-[#FFB703]"><Wallet className="w-5 h-5" /></div>
-              <h3 className="font-black">Financeiro Asaas</h3>
+              <h3 className="font-black">Financeiro por PIX</h3>
             </div>
             <div className="space-y-4">
               <div className="space-y-1">
-                <Label className="text-[10px] font-black uppercase text-slate-400">Wallet ID Oficial</Label>
+                <Label className="text-[10px] font-black uppercase text-slate-400">Saques por PIX</Label>
                 <p className="text-xs font-mono text-indigo-300 truncate bg-white/5 p-2 rounded-lg">
-                  {profile.asaas_wallet_id || "Não configurado"}
+                  Defina sua chave PIX no momento do saque na aba Financeiro.
                 </p>
               </div>
               <p className="text-[10px] text-slate-400 leading-relaxed italic">
-                O Wallet ID é vital para o split automático de comissões. Verifique se o ID está correto para evitar atrasos no recebimento.
+                Não usamos Wallet ID manual para repasse. O pagamento ao profissional é feito por transferência PIX.
               </p>
             </div>
           </Card>

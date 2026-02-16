@@ -83,6 +83,7 @@ const ClientProfile = () => {
     try {
       const { error } = await supabase.from('profiles').update({
         full_name: formData.full_name,
+        email: formData.email,
         bio: formData.bio,
         location: formData.location,
         avatar_url: formData.avatar_url,
@@ -147,6 +148,10 @@ const ClientProfile = () => {
                     <div className="space-y-1">
                       <Label className="text-[10px] font-black uppercase text-slate-400">Localização</Label>
                       <Input value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} className="bg-slate-50 border-none h-12 rounded-xl" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-black uppercase text-slate-400">E-mail de Contato</Label>
+                      <Input value={formData.email || ''} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="bg-slate-50 border-none h-12 rounded-xl" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-[10px] font-black uppercase text-slate-400">Tipo de Contratante</Label>

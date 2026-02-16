@@ -25,13 +25,15 @@ import ProProfile from "./pages/pro/Profile";
 import Discovery from "./pages/client/Discovery";
 import ClientEvents from "./pages/client/Events";
 import Favorites from "./pages/client/Favorites";
-import Profile from "./pages/client/Profile";
+import Profile from "./pages/Profile";
 import Checkout from "./pages/client/Checkout";
 import ClientPayments from "./pages/client/Payments";
 import ContractDetails from "./pages/pro/ContractDetails";
 import ClientPlans from "./pages/client/Plans";
+import PlanCheckout from "./pages/pro/PlanCheckout";
 import ProducerDashboard from "./pages/producer/ProducerDashboard";
 import Messages from "./pages/Messages";
+import Settings from "./pages/Settings";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -70,6 +72,7 @@ const App = () => (
             <Route path="profile" element={<Profile />} />
             <Route path="feed" element={<Feed />} />
             <Route path="messages" element={<Messages />} />
+            <Route path="settings" element={<Settings />} />
             <Route path="contracts" element={<ProContracts />} />
             <Route path="contracts/:id" element={<ContractDetails />} />
             <Route path="finance" element={<ProFinance />} />
@@ -81,6 +84,7 @@ const App = () => (
             <Route path="events" element={<ClientEvents />} />
             <Route path="favorites" element={<Favorites />} />
             <Route path="plans" element={<ClientPlans />} />
+            <Route path="plans/checkout" element={<PlanCheckout />} />
             <Route path="producer" element={<ProducerDashboard />} />
           </Route>
 

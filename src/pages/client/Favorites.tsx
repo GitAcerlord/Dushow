@@ -38,8 +38,14 @@ const Favorites = () => {
   };
 
   const removeFavorite = async (favId: string, artistId: string) => {
-    const { error } = await supabase.functions.invoke('toggle-favorite', { body: { artistId } });
-    if (error) return showError("Falha ao remover favorito.");
+    try {
+      const { error } = await supabase.functions.invoke('toggle-favorite', { body: { artistId } });
+      if (error) throw error;
+    } catch {
+      const { error } = await supabase.from("favorites").delete().eq("id", favId);
+      if (error) return showError("Falha ao remover favorito.");
+    }
+
     setFavorites(favorites.filter(f => f.id !== favId));
     showSuccess("Removido dos favoritos.");
   };

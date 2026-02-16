@@ -6,6 +6,42 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const sendEmailIfEnabled = async (
+  supabase: any,
+  profileId: string,
+  subject: string,
+  html: string,
+) => {
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("email, pref_email_notifications")
+      .eq("id", profileId)
+      .single();
+    if (!profile?.email || profile?.pref_email_notifications === false) return;
+
+    const apiKey = Deno.env.get("RESEND_API_KEY") ?? "";
+    const from = Deno.env.get("RESEND_FROM_EMAIL") ?? "";
+    if (!apiKey || !from) return;
+
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        from,
+        to: [profile.email],
+        subject,
+        html,
+      }),
+    });
+  } catch (_e) {
+    // sem impacto no fluxo principal
+  }
+};
+
 type Action =
   | "ACCEPT"
   | "REJECT"
@@ -137,6 +173,13 @@ serve(async (req) => {
       new_value: nextValue,
       metadata: { source: "contract-state-machine-master" },
     });
+
+    if (nextStatus !== oldStatus) {
+      const subject = `Contrato atualizado: ${nextStatus}`;
+      const html = `<p>O contrato <strong>${contract.event_name || contract.id}</strong> mudou de status para <strong>${nextStatus}</strong>.</p>`;
+      await sendEmailIfEnabled(supabase, contract.contratante_profile_id, subject, html);
+      await sendEmailIfEnabled(supabase, contract.profissional_profile_id, subject, html);
+    }
 
     return new Response(JSON.stringify({ success: true, status_master: nextStatus, value: nextValue }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
