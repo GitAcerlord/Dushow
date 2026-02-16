@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import {
   Ticket, Users, TrendingUp, DollarSign, Share2, QrCode, BarChart3, Loader2, Plus,
 } from "lucide-react";
@@ -166,7 +166,10 @@ const ProducerDashboard = () => {
               </Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>Ativar Bilheteria por Contrato</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle>Ativar Bilheteria por Contrato</DialogTitle>
+                <DialogDescription>Vincule um contrato para habilitar vendas e settlement do evento.</DialogDescription>
+              </DialogHeader>
               <div className="space-y-3">
                 <select
                   value={form.contractId}

@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Calendar, MapPin, FileText, Loader2, Filter, Plus, Users, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -129,6 +129,7 @@ const ClientEvents = () => {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Criar Evento Manual</DialogTitle>
+                <DialogDescription>Preencha os dados para criar um evento no modo planejamento.</DialogDescription>
               </DialogHeader>
               <div className="space-y-3">
                 <Input placeholder="Nome do evento" value={newEvent.name} onChange={(e) => setNewEvent({ ...newEvent, name: e.target.value })} />

@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
 import { getSafeImageUrl } from "@/utils/url-validator";
 import PostCard from "@/components/feed/PostCard";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 const POSTS_PER_PAGE = 10;
 
@@ -220,10 +220,16 @@ const Feed = () => {
         ))}
       </div>
 
-      <Dialog open={!!editingPost} onOpenChange={() => setEditingPost(null)}>
+      <Dialog
+        open={!!editingPost}
+        onOpenChange={(open) => {
+          if (!open) setEditingPost(null);
+        }}
+      >
         <DialogContent className="rounded-[2rem]">
           <DialogHeader>
             <DialogTitle className="text-xl font-black text-[#2D1B69]">Editar Publicação</DialogTitle>
+            <DialogDescription>Atualize o texto da publicacao.</DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Textarea

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -90,6 +90,7 @@ const AddCardDialog = ({ isOpen, onClose, onSuccess }: AddCardDialogProps) => {
           <DialogTitle className="text-2xl font-black flex items-center gap-2">
             <CreditCard className="text-blue-600" /> Novo Cartao
           </DialogTitle>
+          <DialogDescription>Cadastre um cartao para pagamentos na plataforma.</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleAdd} className="space-y-4 py-4">
