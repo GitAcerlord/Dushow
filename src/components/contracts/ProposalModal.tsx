@@ -91,7 +91,12 @@ const ProposalModal = ({ isOpen, onClose, artist }: ProposalModalProps) => {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent className="rounded-[2.5rem] max-w-lg">
         {success ? (
           <div className="py-12 text-center space-y-4 animate-in zoom-in-95">

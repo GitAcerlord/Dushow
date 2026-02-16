@@ -79,7 +79,12 @@ const AddCardDialog = ({ isOpen, onClose, onSuccess }: AddCardDialogProps) => {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent className="rounded-[2.5rem] max-w-md">
         <DialogHeader>
           <DialogTitle className="text-2xl font-black flex items-center gap-2">
