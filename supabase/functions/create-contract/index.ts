@@ -157,9 +157,10 @@ serve(async (req) => {
       value: baseFee,
       duration_minutes: normalizedDuration,
       notes: notes ?? null,
-      status: "PROPOSTO",
+      status: "PROPOSTA_ENVIADA",
       status_v1: "PROPOSTA_ENVIADA",
       status_master: "PROPOSTO",
+      business_status: "SENT",
     };
 
     let contract: any = null;

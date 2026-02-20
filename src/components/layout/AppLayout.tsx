@@ -4,9 +4,10 @@ import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import AppSidebar from './AppSidebar';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Bell, Menu } from 'lucide-react';
+import { Loader2, Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import NotificationBell from "@/components/notifications/NotificationBell";
 
 const AppLayout = () => {
   const [profile, setProfile] = useState<any>(null);
@@ -68,10 +69,7 @@ const AppLayout = () => {
           </div>
           
           <div className="flex items-center gap-6">
-            <button className="relative text-slate-400 hover:text-[#2D1B69] transition-colors">
-              <Bell className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#FFB703] rounded-full border-2 border-white"></span>
-            </button>
+            <NotificationBell />
             <div className="flex items-center gap-3 pl-6 border-l border-slate-100">
               <div className="text-right hidden sm:block">
                 <p className="text-xs font-black text-[#2D1B69]">{profile.full_name}</p>

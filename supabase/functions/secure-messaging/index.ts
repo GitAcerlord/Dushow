@@ -10,6 +10,29 @@ const phoneRegex = /(\d[\s().-]*){8,}/;
 const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
 const blockedKeywords = ["whatsapp", "pix", "chama no insta", "direto", "fora da plataforma", "por fora"];
 
+const pushNotification = async (
+  supabase: any,
+  userId: string,
+  title: string,
+  content: string,
+  type: string,
+  link: string,
+) => {
+  try {
+    await supabase.from("notifications").insert({
+      user_id: userId,
+      title,
+      content,
+      type,
+      link,
+      is_read: false,
+      read_at: null,
+    });
+  } catch (_e) {
+    // Nao interrompe envio de mensagem.
+  }
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -43,7 +66,7 @@ serve(async (req) => {
 
     const { data: contract, error: contractError } = await supabase
       .from("contracts")
-      .select("id, status, contratante_profile_id, profissional_profile_id")
+      .select("id, event_name, status, contratante_profile_id, profissional_profile_id")
       .eq("id", contractId)
       .single();
     if (contractError || !contract) throw new Error("Contrato nao encontrado.");
@@ -94,6 +117,15 @@ serve(async (req) => {
       .select()
       .single();
     if (error) throw error;
+
+    await pushNotification(
+      supabase,
+      receiverId,
+      "Nova mensagem",
+      `Voce recebeu uma nova mensagem em ${contract.event_name || "um contrato ativo"}.`,
+      "MESSAGE",
+      "/app/messages",
+    );
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

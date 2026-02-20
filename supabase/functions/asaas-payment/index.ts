@@ -40,6 +40,27 @@ const sendEmailIfEnabled = async (
   } catch (_e) {}
 };
 
+const pushNotification = async (
+  supabase: any,
+  userId: string,
+  title: string,
+  content: string,
+  type: string,
+  link: string,
+) => {
+  try {
+    await supabase.from("notifications").insert({
+      user_id: userId,
+      title,
+      content,
+      type,
+      link,
+      is_read: false,
+      read_at: null,
+    });
+  } catch (_e) {}
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -63,11 +84,17 @@ serve(async (req) => {
       .eq("id", contractId)
       .single();
     if (cErr || !contract) throw new Error("Contrato nao localizado.");
-    if (contract.contratante_profile_id !== user.id) throw new Error("Apenas contratante pode pagar.");
+    const clientId = contract.contratante_profile_id || contract.client_id;
+    if (clientId !== user.id) throw new Error("Apenas contratante pode pagar.");
 
-    const currentStatus = String(contract.status_master || contract.status || "").toUpperCase();
-    if (!["AGUARDANDO_PAGAMENTO", "ACEITO"].includes(currentStatus)) {
-      throw new Error("Pagamento permitido apenas em AGUARDANDO_PAGAMENTO.");
+    const currentBusiness = String(
+      contract.business_status
+      || contract.status_master
+      || contract.status
+      || "",
+    ).toUpperCase();
+    if (!["AWAITING_PAYMENT", "AGUARDANDO_PAGAMENTO"].includes(currentBusiness)) {
+      throw new Error("Pagamento permitido apenas em AWAITING_PAYMENT.");
     }
 
     const method = (paymentMethod || "CARD").toUpperCase();
@@ -131,66 +158,57 @@ serve(async (req) => {
       throw new Error(`Pagamento nao aprovado no Asaas (status: ${chargeData?.status || "desconhecido"}).`);
     }
 
-    // Aqui entra a cobranca real no gateway (Asaas/Stripe/Pagar.me)
-    const { data: result, error: escrowError } = await supabase.rpc("execute_escrow_payment", {
+    const { data: transitionResult, error: transitionError } = await supabase.rpc("apply_contract_transition", {
       p_contract_id: contractId,
       p_actor_profile_id: user.id,
+      p_action: "PAY",
       p_payment_method: method,
+      p_metadata: {
+        source: "asaas-payment",
+        gateway: "asaas",
+        asaas_payment_id: chargeData?.id ?? null,
+      },
     });
-    if (escrowError) throw escrowError;
-
-    const profAmount = Number(result?.professional_amount ?? 0);
-    await supabase.from("wallet_transactions").insert([
-      {
-        profile_id: contract.contratante_profile_id,
-        source_type: "CONTRACT",
-        source_id: contract.id,
-        type: "DEBIT",
-        amount: -Math.abs(total),
-        status: "COMPLETED",
-        metadata: { action: "PAY_ESCROW", payment_method: method, asaas_payment_id: chargeData?.id ?? null },
-      },
-      {
-        profile_id: contract.profissional_profile_id,
-        source_type: "CONTRACT",
-        source_id: contract.id,
-        type: "HOLD",
-        amount: Math.abs(profAmount),
-        status: "HELD",
-        metadata: { action: "ESCROW_HOLD", payment_method: method, asaas_payment_id: chargeData?.id ?? null },
-      },
-    ]);
+    if (transitionError) throw transitionError;
 
     await supabase
       .from("contracts")
       .update({ asaas_payment_id: chargeData?.id ?? null, paid_at: new Date().toISOString() })
       .eq("id", contractId);
 
-    await supabase.from("contract_history").insert({
-      contract_id: contractId,
-      action: "PAY_ESCROW",
-      performed_by_profile_id: user.id,
-      old_status: currentStatus,
-      new_status: "PAGO_ESCROW",
-      old_value: Number(contract.valor_atual ?? contract.value ?? 0),
-      new_value: Number(contract.valor_atual ?? contract.value ?? 0),
-      metadata: { gateway: "asaas", method, asaas_payment_id: chargeData?.id ?? null, escrow: result || null },
-    });
+    const proId = contract.profissional_profile_id || contract.pro_id;
 
     await sendEmailIfEnabled(
       supabase,
-      contract.contratante_profile_id,
+      clientId,
       "Pagamento confirmado",
       `<p>O pagamento do contrato <strong>${contract.event_name || contract.id}</strong> foi confirmado em escrow.</p>`,
     );
     await sendEmailIfEnabled(
       supabase,
-      contract.profissional_profile_id,
+      proId,
       "Contrato pago em escrow",
       `<p>O contrato <strong>${contract.event_name || contract.id}</strong> foi pago e está em escrow.</p>`,
     );
 
-    return new Response(JSON.stringify({ success: true, status_master: "PAGO_ESCROW", asaas_payment_id: chargeData?.id ?? null, escrow: result }), {
+    await pushNotification(
+      supabase,
+      clientId,
+      "Pagamento confirmado",
+      `Seu pagamento para "${contract.event_name || contract.id}" foi confirmado em escrow.`,
+      "PAYMENT",
+      `/app/contracts/${contractId}`,
+    );
+    await pushNotification(
+      supabase,
+      proId,
+      "Pagamento recebido em escrow",
+      `O contrato "${contract.event_name || contract.id}" foi pago e esta em escrow.`,
+      "PAYMENT",
+      `/app/contracts/${contractId}`,
+    );
+
+    return new Response(JSON.stringify({ success: true, business_status: "PAID_ESCROW", asaas_payment_id: chargeData?.id ?? null, transition: transitionResult }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

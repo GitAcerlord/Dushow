@@ -11,6 +11,17 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { getSafeImageUrl } from '@/utils/url-validator';
 
+const normalizeStatus = (raw: unknown) => {
+  const status = String(raw || "").toUpperCase();
+  if (!status) return "PROPOSTO";
+  if (["PROPOSTA_ENVIADA", "PENDING", "PENDENTE"].includes(status)) return "PROPOSTO";
+  if (["SIGNED", "ASSINADO", "ACEITO", "ACCEPTED"].includes(status)) return "AGUARDANDO_PAGAMENTO";
+  if (["PAID", "PAGO"].includes(status)) return "PAGO_ESCROW";
+  if (status === "COMPLETED") return "CONCLUIDO";
+  if (["REJEITADO", "REFUNDED", "REJECTED", "CANCELED", "CANCELLED"].includes(status)) return "CANCELADO";
+  return status;
+};
+
 const ProMessages = () => {
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedConv, setSelectedConv] = useState<any>(null);
@@ -28,21 +39,50 @@ const ProMessages = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Busca contratos onde sou o profissional para listar meus clientes
-      const { data: contracts, error } = await supabase
+      let rows: any[] = [];
+
+      const modern = await supabase
         .from('contracts')
-        .select(`
-          id, 
-          event_name, 
-          status, 
-          client:profiles!contracts_contratante_profile_id_fkey(id, full_name, avatar_url)
-        `)
+        .select('id, event_name, status, status_master, created_at, contratante_profile_id')
         .eq('profissional_profile_id', user.id)
-        .in('status', ['PROPOSTO', 'CONTRAPROPOSTA', 'AGUARDANDO_PAGAMENTO', 'PAGO_ESCROW', 'EM_EXECUCAO', 'CONCLUIDO', 'LIBERADO_FINANCEIRO'])
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setConversations(contracts || []);
+      if (!modern.error) {
+        rows = modern.data || [];
+      } else {
+        const legacy = await supabase
+          .from('contracts')
+          .select('id, event_name, status, status_master, created_at, client_id')
+          .eq('pro_id', user.id)
+          .order('created_at', { ascending: false });
+        if (legacy.error) throw legacy.error;
+        rows = legacy.data || [];
+      }
+
+      const clientIds = Array.from(
+        new Set(
+          rows.map((row) => row.contratante_profile_id || row.client_id).filter(Boolean),
+        ),
+      ) as string[];
+      const { data: clients } = clientIds.length > 0
+        ? await supabase.from('profiles').select('id, full_name, avatar_url').in('id', clientIds)
+        : { data: [] as any[] };
+      const clientMap = new Map((clients || []).map((client: any) => [client.id, client]));
+
+      const normalizedRows = rows
+        .map((row) => {
+          const clientId = row.contratante_profile_id || row.client_id;
+          return {
+            id: row.id,
+            event_name: row.event_name,
+            status: normalizeStatus(row.status_master || row.status || row.status_v1),
+            recipient_id: clientId || null,
+            client: clientMap.get(clientId) || null,
+          };
+        })
+        .filter((row) => row.status !== "CANCELADO");
+
+      setConversations(normalizedRows);
     } catch (e) {
       console.error("[ProMessages] Error:", e);
     } finally {
@@ -122,9 +162,9 @@ const ProMessages = () => {
                 <ArrowLeft size={18} /> Voltar
               </button>
               <ChatWindow 
-                recipientId={selectedConv.client?.id}
-                recipientName={selectedConv.client?.full_name} 
-                recipientAvatar={selectedConv.client?.avatar_url}
+                recipientId={selectedConv.recipient_id}
+                recipientName={selectedConv.client?.full_name || "Contratante"} 
+                recipientAvatar={getSafeImageUrl(selectedConv.client?.avatar_url, `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedConv.client?.full_name || "Contratante"}`)}
                 contractId={selectedConv.id}
               />
             </div>

@@ -42,17 +42,42 @@ const sendEmailIfEnabled = async (
   }
 };
 
+const pushNotification = async (
+  supabase: any,
+  userId: string,
+  title: string,
+  content: string,
+  type: string,
+  link: string,
+) => {
+  try {
+    await supabase.from("notifications").insert({
+      user_id: userId,
+      title,
+      content,
+      type,
+      link,
+      is_read: false,
+      read_at: null,
+    });
+  } catch (_e) {
+    // sem impacto no fluxo principal
+  }
+};
+
 type Action =
   | "ACCEPT"
   | "REJECT"
   | "COUNTER_PROPOSAL"
   | "APPROVE_COUNTER"
+  | "SIGN"
   | "PAY"
   | "START_EXECUTION"
   | "CONFIRM_COMPLETION"
+  | "RELEASE"
+  | "CANCEL"
   | "OPEN_MEDIATION"
-  | "RESOLVE_MEDIATION_RELEASE"
-  | "CANCEL";
+  | "RESOLVE_MEDIATION_RELEASE";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -65,10 +90,26 @@ serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization") ?? "";
     const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
     if (authError || !user) throw new Error("Nao autorizado.");
 
-    const { contractId, action, newValue } = await req.json() as { contractId: string; action: Action; newValue?: number };
+    const {
+      contractId,
+      action,
+      newValue,
+      paymentMethod,
+      metadata,
+    } = await req.json() as {
+      contractId: string;
+      action: Action;
+      newValue?: number;
+      paymentMethod?: string;
+      metadata?: Record<string, unknown>;
+    };
+
     if (!contractId || !action) throw new Error("contractId e action sao obrigatorios.");
 
     const { data: contract, error: cErr } = await supabase
@@ -78,110 +119,45 @@ serve(async (req) => {
       .single();
     if (cErr || !contract) throw new Error("Contrato nao encontrado.");
 
-    const isClient = contract.contratante_profile_id === user.id;
-    const isPro = contract.profissional_profile_id === user.id;
-    const isParticipant = isClient || isPro;
-    const oldStatus = String(contract.status_master || contract.status || "").toUpperCase();
+    const clientId = contract.contratante_profile_id || contract.client_id;
+    const proId = contract.profissional_profile_id || contract.pro_id;
+    if (!clientId || !proId) throw new Error("Contrato sem participantes validos.");
 
-    const assert = (condition: boolean, message: string) => {
-      if (!condition) throw new Error(message);
-    };
+    const canonicalAction =
+      action === "APPROVE_COUNTER" ? "ACCEPT"
+      : action === "OPEN_MEDIATION" ? "CANCEL"
+      : action === "RESOLVE_MEDIATION_RELEASE" ? "RELEASE"
+      : action;
 
-    let nextStatus = oldStatus;
-    let nextValue = Number(contract.valor_atual ?? 0);
-
-    switch (action) {
-      case "ACCEPT":
-        assert(isPro, "Apenas profissional pode aceitar.");
-        assert(["PROPOSTO", "PROPOSTA_ENVIADA", "CONTRAPROPOSTA"].includes(oldStatus), "Transicao invalida.");
-        nextStatus = "AGUARDANDO_PAGAMENTO";
-        break;
-      case "REJECT":
-        assert(isPro, "Apenas profissional pode rejeitar.");
-        assert(["PROPOSTO", "PROPOSTA_ENVIADA", "CONTRAPROPOSTA"].includes(oldStatus), "Transicao invalida.");
-        nextStatus = "CANCELADO";
-        break;
-      case "COUNTER_PROPOSAL":
-        assert(isClient, "Apenas contratante pode contrapropor valor.");
-        assert(["PROPOSTO", "PROPOSTA_ENVIADA", "CONTRAPROPOSTA"].includes(oldStatus), "Transicao invalida.");
-        assert(typeof newValue === "number" && newValue > 0, "Novo valor invalido.");
-        nextStatus = "CONTRAPROPOSTA";
-        nextValue = newValue;
-        break;
-      case "APPROVE_COUNTER":
-        assert(isPro, "Apenas profissional pode aprovar contraproposta do contratante.");
-        assert(oldStatus === "CONTRAPROPOSTA", "Transicao invalida.");
-        nextStatus = "AGUARDANDO_PAGAMENTO";
-        break;
-      case "PAY":
-        assert(isClient, "Apenas contratante pode pagar.");
-        assert(["AGUARDANDO_PAGAMENTO", "ACEITO"].includes(oldStatus), "Pagamento so ocorre em AGUARDANDO_PAGAMENTO.");
-        await supabase.rpc("execute_escrow_payment", {
-          p_contract_id: contractId,
-          p_actor_profile_id: user.id,
-          p_payment_method: "CARD",
-        });
-        nextStatus = "PAGO_ESCROW";
-        break;
-      case "START_EXECUTION":
-        assert(isParticipant, "Participante invalido.");
-        await supabase.rpc("mark_contract_in_execution", { p_contract_id: contractId, p_actor: user.id });
-        nextStatus = "EM_EXECUCAO";
-        break;
-      case "CONFIRM_COMPLETION":
-        assert(isParticipant, "Participante invalido.");
-        await supabase.rpc("confirm_contract_completion", { p_contract_id: contractId, p_actor: user.id });
-        nextStatus = isClient ? "LIBERADO_FINANCEIRO" : "CONCLUIDO";
-        break;
-      case "OPEN_MEDIATION":
-        assert(isParticipant, "Participante invalido.");
-        nextStatus = "EM_MEDIACAO";
-        break;
-      case "RESOLVE_MEDIATION_RELEASE":
-        assert(isParticipant, "Participante invalido.");
-        await supabase.rpc("release_contract_funds", { p_contract_id: contractId, p_reason: "MEDIATION_ADMIN" });
-        nextStatus = "LIBERADO_FINANCEIRO";
-        break;
-      case "CANCEL":
-        assert(isParticipant, "Participante invalido.");
-        await supabase.rpc("process_contract_cancellation", { p_contract_id: contractId, p_actor: user.id });
-        nextStatus = "CANCELADO";
-        break;
-      default:
-        throw new Error("Acao invalida.");
-    }
-
-    if (!["PAY", "START_EXECUTION", "CONFIRM_COMPLETION", "RESOLVE_MEDIATION_RELEASE", "CANCEL"].includes(action)) {
-      const { error: uErr } = await supabase.from("contracts").update({
-        status_master: nextStatus,
-        status: nextStatus,
-        status_v1: nextStatus === "PROPOSTO" ? "PROPOSTA_ENVIADA" : nextStatus,
-        valor_atual: nextValue,
-        value: nextValue,
-        ...(nextStatus === "EM_MEDIACAO" ? { disputed_at: new Date().toISOString() } : {}),
-      }).eq("id", contractId);
-      if (uErr) throw uErr;
-    }
-
-    await supabase.from("contract_history").insert({
-      contract_id: contractId,
-      action,
-      performed_by_profile_id: user.id,
-      old_status: oldStatus,
-      new_status: nextStatus,
-      old_value: Number(contract.valor_atual ?? 0),
-      new_value: nextValue,
-      metadata: { source: "contract-state-machine-master" },
+    const { data: transition, error: transitionError } = await supabase.rpc("apply_contract_transition", {
+      p_contract_id: contractId,
+      p_actor_profile_id: user.id,
+      p_action: canonicalAction,
+      p_new_value: typeof newValue === "number" ? newValue : null,
+      p_payment_method: paymentMethod || null,
+      p_metadata: {
+        source: "contract-state-machine",
+        ...(metadata || {}),
+      },
     });
+    if (transitionError) throw transitionError;
 
-    if (nextStatus !== oldStatus) {
+    const nextStatus = String(transition?.new_status || "");
+    if (nextStatus) {
       const subject = `Contrato atualizado: ${nextStatus}`;
-      const html = `<p>O contrato <strong>${contract.event_name || contract.id}</strong> mudou de status para <strong>${nextStatus}</strong>.</p>`;
-      await sendEmailIfEnabled(supabase, contract.contratante_profile_id, subject, html);
-      await sendEmailIfEnabled(supabase, contract.profissional_profile_id, subject, html);
+      const html = `<p>O contrato <strong>${contract.event_name || contract.id}</strong> mudou para <strong>${nextStatus}</strong>.</p>`;
+
+      await sendEmailIfEnabled(supabase, clientId, subject, html);
+      await sendEmailIfEnabled(supabase, proId, subject, html);
+
+      const title = "Atualizacao de contrato";
+      const content = `O contrato "${contract.event_name || contract.id}" mudou para ${nextStatus}.`;
+      const link = `/app/contracts/${contractId}`;
+      await pushNotification(supabase, clientId, title, content, "CONTRACT_STATUS", link);
+      await pushNotification(supabase, proId, title, content, "CONTRACT_STATUS", link);
     }
 
-    return new Response(JSON.stringify({ success: true, status_master: nextStatus, value: nextValue }), {
+    return new Response(JSON.stringify({ success: true, transition }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

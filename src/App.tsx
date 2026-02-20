@@ -3,6 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import PublicRouteGuard from "./components/auth/PublicRouteGuard";
 import AppLayout from "./components/layout/AppLayout";
 import AdminLayout from "./pages/admin/AdminLayout";
 
@@ -33,15 +34,18 @@ import PlanCheckout from "./pages/pro/PlanCheckout";
 import ProducerDashboard from "./pages/producer/ProducerDashboard";
 import Messages from "./pages/Messages";
 import Settings from "./pages/Settings";
+import Support from "./pages/Support";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminUsers from "./pages/admin/Users";
 import AdminContracts from "./pages/admin/Contracts";
+import AdminDisputes from "./pages/admin/Disputes";
 import AdminMessages from "./pages/admin/Messages";
 import AdminFinance from "./pages/admin/Finance";
 import AdminApprovals from "./pages/admin/Approvals";
 import AdminSettings from "./pages/admin/Settings";
+import AdminSupport from "./pages/admin/Support";
 
 const queryClient = new QueryClient();
 
@@ -52,13 +56,13 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<PublicRouteGuard><Index /></PublicRouteGuard>} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/services" element={<Services />} />
-          <Route path="/discovery" element={<Discovery />} />
-          <Route path="/artist/:id" element={<ArtistProfile />} />
+          <Route path="/about" element={<PublicRouteGuard><About /></PublicRouteGuard>} />
+          <Route path="/services" element={<PublicRouteGuard><Services /></PublicRouteGuard>} />
+          <Route path="/discovery" element={<PublicRouteGuard><Discovery /></PublicRouteGuard>} />
+          <Route path="/artist/:id" element={<PublicRouteGuard><ArtistProfile /></PublicRouteGuard>} />
           
           {/* Unified App Route (PRO & CLIENT) */}
           <Route path="/app" element={
@@ -71,6 +75,7 @@ const App = () => (
             <Route path="feed" element={<Feed />} />
             <Route path="messages" element={<Messages />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="support" element={<Support />} />
             <Route path="contracts" element={<ProContracts />} />
             <Route path="contracts/:id" element={<ContractDetails />} />
             <Route path="finance" element={<ProFinance />} />
@@ -95,10 +100,12 @@ const App = () => (
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="contracts" element={<AdminContracts />} />
+            <Route path="disputes" element={<AdminDisputes />} />
             <Route path="messages" element={<AdminMessages />} />
             <Route path="finance" element={<AdminFinance />} />
             <Route path="approvals" element={<AdminApprovals />} />
             <Route path="settings" element={<AdminSettings />} />
+            <Route path="support" element={<AdminSupport />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

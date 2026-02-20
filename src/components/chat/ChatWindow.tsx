@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from "@/utils/toast";
+import { getSafeImageUrl } from "@/utils/url-validator";
 
 const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }: any) => {
   const [messages, setMessages] = useState<any[]>([]);
@@ -104,7 +105,7 @@ const ChatWindow = ({ recipientId, recipientName, recipientAvatar, contractId }:
       <div className="p-4 border-b flex items-center justify-between bg-slate-50">
         <div className="flex items-center gap-3">
           <Avatar>
-            <AvatarImage src={recipientAvatar} />
+            <AvatarImage src={getSafeImageUrl(recipientAvatar, `https://api.dicebear.com/7.x/avataaars/svg?seed=${recipientName || "Usuario"}`)} />
             <AvatarFallback>{recipientName?.[0]}</AvatarFallback>
           </Avatar>
           <div>

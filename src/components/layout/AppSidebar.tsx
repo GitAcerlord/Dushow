@@ -36,6 +36,7 @@ const AppSidebar = ({ profile }: any) => {
         { icon: FileText, label: 'Contratos', path: '/app/contracts' },
         { icon: Calendar, label: 'Agenda', path: '/app/agenda' },
         { icon: CreditCard, label: 'Financeiro', path: '/app/finance' },
+        { icon: HelpCircle, label: 'Suporte', path: '/app/support' },
         { icon: Lock, label: 'Plano', path: '/app/plans' },
       ]
     },
@@ -47,6 +48,7 @@ const AppSidebar = ({ profile }: any) => {
         { icon: FileText, label: 'Contratos', path: '/app/contracts' },
         { icon: Search, label: 'Artistas', path: '/app/discovery' },
         { icon: MessageSquare, label: 'Mensagens', path: '/app/messages' },
+        { icon: HelpCircle, label: 'Suporte', path: '/app/support' },
       ]
     },
     CONTRACTOR: {
@@ -58,6 +60,7 @@ const AppSidebar = ({ profile }: any) => {
         { icon: MessageSquare, label: 'Mensagens', path: '/app/messages' },
         { icon: Heart, label: 'Favoritos', path: '/app/favorites' },
         { icon: CreditCard, label: 'Pagamentos', path: '/app/payments' },
+        { icon: HelpCircle, label: 'Suporte', path: '/app/support' },
         { icon: Lock, label: 'Plano', path: '/app/plans' },
       ]
     },
@@ -70,6 +73,7 @@ const AppSidebar = ({ profile }: any) => {
         { icon: MessageSquare, label: 'Mensagens', path: '/app/messages' },
         { icon: Heart, label: 'Favoritos', path: '/app/favorites' },
         { icon: CreditCard, label: 'Pagamentos', path: '/app/payments' },
+        { icon: HelpCircle, label: 'Suporte', path: '/app/support' },
         { icon: Lock, label: 'Plano', path: '/app/plans' },
       ]
     }

@@ -19,6 +19,33 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
+import { getSafeImageUrl } from "@/utils/url-validator";
+
+const normalizeStatus = (raw: unknown) => {
+  const status = String(raw || "").toUpperCase();
+  if (!status) return "PROPOSTO";
+  if (["PROPOSTA_ENVIADA", "PENDING", "PENDENTE"].includes(status)) return "PROPOSTO";
+  if (["SIGNED", "ASSINADO", "ACEITO", "ACCEPTED"].includes(status)) return "AGUARDANDO_PAGAMENTO";
+  if (["PAID", "PAGO"].includes(status)) return "PAGO_ESCROW";
+  if (status === "COMPLETED") return "CONCLUIDO";
+  if (["REJEITADO", "REFUNDED", "REJECTED", "CANCELED", "CANCELLED"].includes(status)) return "CANCELADO";
+  return status;
+};
+
+const statusLabel = (status: string) => {
+  const map: Record<string, string> = {
+    PROPOSTO: "Proposta enviada",
+    CONTRAPROPOSTA: "Contraproposta",
+    AGUARDANDO_PAGAMENTO: "Aguardando pagamento",
+    PAGO_ESCROW: "Pago em escrow",
+    EM_EXECUCAO: "Em execucao",
+    CONCLUIDO: "Concluido",
+    LIBERADO_FINANCEIRO: "Financeiro liberado",
+    EM_MEDIACAO: "Em mediacao",
+    CANCELADO: "Cancelado",
+  };
+  return map[status] || status;
+};
 
 const ContractDetails = () => {
   const { id } = useParams();
@@ -39,17 +66,34 @@ const ContractDetails = () => {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       setUser(authUser);
 
-      const { data, error } = await supabase
+      const modern = await supabase
         .from("contracts")
-        .select(`
-          *,
-          client:profiles!contracts_contratante_profile_id_fkey(full_name, avatar_url),
-          pro:profiles!contracts_profissional_profile_id_fkey(full_name, avatar_url)
-        `)
+        .select(`*`)
         .eq("id", id)
         .maybeSingle();
-      if (error) throw error;
-      setContract(data);
+      if (modern.error) throw modern.error;
+
+      const data = modern.data;
+      if (!data) {
+        setContract(null);
+        return;
+      }
+
+      const clientId = data.contratante_profile_id || data.client_id;
+      const proId = data.profissional_profile_id || data.pro_id;
+
+      const [clientRes, proRes] = await Promise.all([
+        clientId ? supabase.from("profiles").select("full_name, avatar_url").eq("id", clientId).maybeSingle() : Promise.resolve({ data: null } as any),
+        proId ? supabase.from("profiles").select("full_name, avatar_url").eq("id", proId).maybeSingle() : Promise.resolve({ data: null } as any),
+      ]);
+
+      setContract({
+        ...data,
+        contratante_profile_id: clientId,
+        profissional_profile_id: proId,
+        client: clientRes.data || null,
+        pro: proRes.data || null,
+      });
     } catch {
       showError("Falha ao carregar detalhes do contrato.");
     } finally {
@@ -60,14 +104,21 @@ const ContractDetails = () => {
   const handleStatusChange = async (action: string) => {
     setIsProcessing(true);
     try {
-      const { error } = await supabase.functions.invoke("contract-state-machine", {
+      const { data, error } = await supabase.functions.invoke("contract-state-machine", {
         body: { contractId: id, action },
       });
-      if (error) throw error;
+      if (error) {
+        let message = error.message || "Erro ao processar transicao de status.";
+        try {
+          const errBody = await error.context?.json();
+          if (errBody?.error) message = errBody.error;
+        } catch (_e) {}
+        throw new Error(message);
+      }
       showSuccess(`Status atualizado: ${action}`);
       fetchData();
-    } catch {
-      showError("Erro ao processar transicao de status.");
+    } catch (error: any) {
+      showError(error.message || "Erro ao processar transicao de status.");
     } finally {
       setIsProcessing(false);
     }
@@ -134,9 +185,15 @@ const ContractDetails = () => {
   }
   if (!contract) return <div className="p-20 text-center">Contrato nao localizado.</div>;
 
-  const displayValue = Number(contract.valor_atual || 0);
+  const displayStatus = normalizeStatus(contract.status_master || contract.status || contract.status_v1);
+  const displayValue = Number(contract.valor_atual ?? contract.value ?? 0);
   const isPro = user?.id === contract.profissional_profile_id;
   const isClient = user?.id === contract.contratante_profile_id;
+  const otherParty = isPro ? contract.client : contract.pro;
+  const otherPartyAvatar = getSafeImageUrl(
+    otherParty?.avatar_url,
+    `https://api.dicebear.com/7.x/avataaars/svg?seed=${otherParty?.full_name || "Usuario"}`,
+  );
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-8">
@@ -153,7 +210,7 @@ const ContractDetails = () => {
             <div>
               <h2 className="text-2xl font-black text-[#2D1B69] uppercase tracking-tighter leading-none">{contract.event_name}</h2>
               <Badge className="mt-2 bg-indigo-50 text-[#2D1B69] border-none font-black text-[10px] uppercase px-3 py-1">
-                Status: {contract.status}
+                Status: {statusLabel(displayStatus)}
               </Badge>
             </div>
           </div>
@@ -174,7 +231,7 @@ const ContractDetails = () => {
           </h4>
 
           <div className="flex flex-wrap gap-4">
-            {contract.status === "PROPOSTO" && isPro && (
+            {(displayStatus === "PROPOSTO" || displayStatus === "CONTRAPROPOSTA") && isPro && (
               <>
                 <Button onClick={() => handleStatusChange("ACCEPT")} disabled={isProcessing} className="bg-[#2D1B69] h-12 px-8 rounded-xl font-bold">
                   Aceitar Proposta
@@ -185,25 +242,19 @@ const ContractDetails = () => {
               </>
             )}
 
-            {contract.status === "PROPOSTO" && isClient && (
+            {(displayStatus === "PROPOSTO" || displayStatus === "CONTRAPROPOSTA") && isPro && (
               <Button onClick={handleCounterProposal} disabled={isProcessing} className="bg-[#2D1B69] h-12 px-8 rounded-xl font-bold">
                 Enviar Contraproposta
               </Button>
             )}
 
-            {contract.status === "CONTRAPROPOSTA" && isPro && (
-              <Button onClick={() => handleStatusChange("APPROVE_COUNTER")} className="bg-[#2D1B69] h-14 px-10 rounded-2xl font-black">
-                Aprovar Contraproposta
-              </Button>
-            )}
-
-            {contract.status === "AGUARDANDO_PAGAMENTO" && isClient && (
+            {displayStatus === "AGUARDANDO_PAGAMENTO" && isClient && (
               <Button onClick={() => navigate("/app/checkout", { state: { artist: contract.pro, contractId: contract.id } })} className="bg-emerald-600 h-14 px-10 rounded-2xl font-black shadow-xl shadow-emerald-100">
                 Efetuar Pagamento
               </Button>
             )}
 
-            {contract.status === "PAGO_ESCROW" && (
+            {displayStatus === "PAGO_ESCROW" && (
               <div className="flex items-center gap-3 p-4 bg-emerald-50 text-emerald-700 rounded-2xl w-full border border-emerald-100">
                 <ShieldCheck className="w-6 h-6" />
                 <p className="text-xs font-bold uppercase">
@@ -212,19 +263,19 @@ const ContractDetails = () => {
               </div>
             )}
 
-            {contract.status === "PAGO_ESCROW" && (
+            {displayStatus === "PAGO_ESCROW" && (
               <Button onClick={() => handleStatusChange("START_EXECUTION")} className="bg-[#2D1B69] h-12 px-8 rounded-xl font-bold">
                 Iniciar Execucao
               </Button>
             )}
 
-            {contract.status === "EM_EXECUCAO" && (
+            {displayStatus === "EM_EXECUCAO" && (
               <Button onClick={() => handleStatusChange("CONFIRM_COMPLETION")} className="bg-[#2D1B69] h-12 px-8 rounded-xl font-bold">
                 Confirmar Conclusao
               </Button>
             )}
 
-            {contract.status === "CONCLUIDO" && isClient && (
+            {displayStatus === "CONCLUIDO" && isClient && (
               <Button onClick={handleQuickReview} disabled={isReviewing} className="bg-amber-500 h-12 px-8 rounded-xl font-bold">
                 {isReviewing ? <Loader2 className="animate-spin" /> : "Avaliar Profissional"}
               </Button>
@@ -237,14 +288,14 @@ const ContractDetails = () => {
             <div className="space-y-1">
               <Label className="text-[10px] font-black uppercase text-slate-400 flex items-center gap-1"><User className="w-3 h-3" /> {isPro ? "Contratante" : "Profissional"}</Label>
               <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl">
-                <img src={isPro ? contract.client?.avatar_url : contract.pro?.avatar_url} className="w-10 h-10 rounded-xl object-cover" />
-                <p className="font-black text-[#2D1B69]">{isPro ? contract.client?.full_name : contract.pro?.full_name}</p>
+                <img src={otherPartyAvatar} alt={otherParty?.full_name || "Usuario"} className="w-10 h-10 rounded-xl object-cover" />
+                <p className="font-black text-[#2D1B69]">{otherParty?.full_name || "Usuario"}</p>
               </div>
             </div>
 
             <div className="space-y-1">
               <Label className="text-[10px] font-black uppercase text-slate-400 flex items-center gap-1"><Calendar className="w-3 h-3" /> Data do Show</Label>
-              <p className="text-xl font-bold text-slate-700">{new Date(contract.data_evento || contract.event_date).toLocaleDateString("pt-BR", { dateStyle: "full" })}</p>
+              <p className="text-xl font-bold text-slate-700">{contract.data_evento || contract.event_date ? new Date(contract.data_evento || contract.event_date).toLocaleDateString("pt-BR", { dateStyle: "full" }) : "Nao definida"}</p>
             </div>
           </div>
 
@@ -257,6 +308,36 @@ const ContractDetails = () => {
             <div className="space-y-1">
               <Label className="text-[10px] font-black uppercase text-slate-400 flex items-center gap-1"><MessageSquare className="w-3 h-3" /> Detalhes Adicionais</Label>
               <p className="text-sm text-slate-500 leading-relaxed italic">"{contract.descricao || contract.contract_text || "Sem observacoes."}"</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t pt-8">
+          <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Informacoes tecnicas do contrato</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div className="p-4 bg-slate-50 rounded-xl">
+              <p className="text-slate-400 text-[10px] uppercase font-black">Contrato ID</p>
+              <p className="font-mono text-slate-700 break-all">{contract.id}</p>
+            </div>
+            <div className="p-4 bg-slate-50 rounded-xl">
+              <p className="text-slate-400 text-[10px] uppercase font-black">Status bruto</p>
+              <p className="font-bold text-slate-700">{contract.status_master || contract.status || "-"}</p>
+            </div>
+            <div className="p-4 bg-slate-50 rounded-xl">
+              <p className="text-slate-400 text-[10px] uppercase font-black">Criado em</p>
+              <p className="font-bold text-slate-700">{contract.created_at ? new Date(contract.created_at).toLocaleString("pt-BR") : "-"}</p>
+            </div>
+            <div className="p-4 bg-slate-50 rounded-xl">
+              <p className="text-slate-400 text-[10px] uppercase font-black">Atualizado em</p>
+              <p className="font-bold text-slate-700">{contract.updated_at ? new Date(contract.updated_at).toLocaleString("pt-BR") : "-"}</p>
+            </div>
+            <div className="p-4 bg-slate-50 rounded-xl">
+              <p className="text-slate-400 text-[10px] uppercase font-black">Contratante ID</p>
+              <p className="font-mono text-slate-700 break-all">{contract.contratante_profile_id || "-"}</p>
+            </div>
+            <div className="p-4 bg-slate-50 rounded-xl">
+              <p className="text-slate-400 text-[10px] uppercase font-black">Profissional ID</p>
+              <p className="font-mono text-slate-700 break-all">{contract.profissional_profile_id || "-"}</p>
             </div>
           </div>
         </div>

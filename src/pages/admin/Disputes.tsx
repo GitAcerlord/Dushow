@@ -19,14 +19,78 @@ const AdminDisputes = () => {
   const fetchDisputes = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const modern = await supabase
         .from('contracts')
-        .select('*, client:profiles!contracts_client_id_fkey(full_name), pro:profiles!contracts_pro_id_fkey(full_name)')
-        .eq('status', 'DISPUTED')
-        .order('dispute_opened_at', { ascending: false });
+        .select('id, event_name, status, created_at, valor_atual, dispute_reason, disputed_at, contratante_profile_id, profissional_profile_id')
+        .in('status', ['DISPUTED', 'EM_MEDIACAO']);
 
-      if (error) throw error;
-      setDisputes(data || []);
+      let rows: any[] = [];
+      let getClientId: (row: any) => string | null = () => null;
+      let getProId: (row: any) => string | null = () => null;
+      let getAmount: (row: any) => number = () => 0;
+      let getOpenedAt: (row: any) => string | null = () => null;
+
+      if (!modern.error) {
+        rows = modern.data || [];
+        getClientId = (row) => row.contratante_profile_id || null;
+        getProId = (row) => row.profissional_profile_id || null;
+        getAmount = (row) => Number(row.valor_atual || 0);
+        getOpenedAt = (row) => row.disputed_at || row.created_at || null;
+      } else {
+        const legacy = await supabase
+          .from('contracts')
+          .select('id, event_name, status, created_at, value, dispute_reason, dispute_opened_at, client_id, pro_id')
+          .in('status', ['DISPUTED', 'EM_MEDIACAO']);
+
+        if (!legacy.error) {
+          rows = legacy.data || [];
+          getClientId = (row) => row.client_id || null;
+          getProId = (row) => row.pro_id || null;
+          getAmount = (row) => Number(row.value || 0);
+          getOpenedAt = (row) => row.dispute_opened_at || row.created_at || null;
+        } else {
+          const minimal = await supabase
+            .from('contracts')
+            .select('id, event_name, status, created_at, client_id, pro_id')
+            .in('status', ['DISPUTED', 'EM_MEDIACAO']);
+
+          if (minimal.error) throw minimal.error;
+          rows = minimal.data || [];
+          getClientId = (row) => row.client_id || null;
+          getProId = (row) => row.pro_id || null;
+          getAmount = () => 0;
+          getOpenedAt = (row) => row.created_at || null;
+        }
+      }
+
+      const profileIds = Array.from(
+        new Set(
+          rows.flatMap((row) => {
+            const ids = [getClientId(row), getProId(row)].filter(Boolean);
+            return ids as string[];
+          }),
+        ),
+      );
+      const { data: profiles } = profileIds.length
+        ? await supabase.from('profiles').select('id, full_name').in('id', profileIds)
+        : { data: [] as any[] };
+      const profileMap = new Map((profiles || []).map((profile: any) => [profile.id, profile.full_name || '-']));
+
+      const normalized = rows
+        .map((row) => ({
+          ...row,
+          value: getAmount(row),
+          dispute_opened_at: getOpenedAt(row),
+          client: { full_name: profileMap.get(getClientId(row) || '') || '-' },
+          pro: { full_name: profileMap.get(getProId(row) || '') || '-' },
+        }))
+        .sort((a, b) => {
+          const aTime = a.dispute_opened_at ? new Date(a.dispute_opened_at).getTime() : 0;
+          const bTime = b.dispute_opened_at ? new Date(b.dispute_opened_at).getTime() : 0;
+          return bTime - aTime;
+        });
+
+      setDisputes(normalized);
     } catch (e: any) {
       showError(e.message || 'Erro ao buscar disputas');
     } finally {

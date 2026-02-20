@@ -8,6 +8,18 @@ import { Loader2, MessageSquare, Calendar } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { getSafeImageUrl } from "@/utils/url-validator";
+
+const normalizeStatus = (raw: unknown) => {
+  const status = String(raw || "").toUpperCase();
+  if (!status) return "PROPOSTO";
+  if (["PROPOSTA_ENVIADA", "PENDING", "PENDENTE"].includes(status)) return "PROPOSTO";
+  if (["SIGNED", "ASSINADO", "ACEITO", "ACCEPTED"].includes(status)) return "AGUARDANDO_PAGAMENTO";
+  if (["PAID", "PAGO"].includes(status)) return "PAGO_ESCROW";
+  if (status === "COMPLETED") return "CONCLUIDO";
+  if (["REJEITADO", "REFUNDED", "REJECTED", "CANCELED", "CANCELLED"].includes(status)) return "CANCELADO";
+  return status;
+};
 
 const ClientMessages = () => {
   const [conversations, setConversations] = useState<any[]>([]);
@@ -22,25 +34,51 @@ const ClientMessages = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Corrigido: contratante_profile_id e status em português
-    const { data: contracts, error } = await supabase
+    let rows: any[] = [];
+
+    const modern = await supabase
       .from('contracts')
-      .select(`
-        id,
-        event_name,
-        status,
-        pro:profiles!contracts_profissional_profile_id_fkey(id, full_name, avatar_url)
-      `)
+      .select('id, event_name, status, status_master, created_at, profissional_profile_id')
       .eq('contratante_profile_id', user.id)
-      .in('status', ['PROPOSTO', 'CONTRAPROPOSTA', 'AGUARDANDO_PAGAMENTO', 'PAGO_ESCROW', 'EM_EXECUCAO', 'CONCLUIDO', 'LIBERADO_FINANCEIRO'])
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error("Erro ao carregar conversas:", error);
+    if (!modern.error) {
+      rows = modern.data || [];
     } else {
-      setConversations(contracts || []);
-      if (contracts && contracts.length > 0) setSelectedConv(contracts[0]);
+      const legacy = await supabase
+        .from('contracts')
+        .select('id, event_name, status, status_master, created_at, pro_id')
+        .eq('client_id', user.id)
+        .order('created_at', { ascending: false });
+      if (legacy.error) {
+        console.error("Erro ao carregar conversas:", legacy.error);
+        setLoading(false);
+        return;
+      }
+      rows = legacy.data || [];
     }
+
+    const proIds = Array.from(
+      new Set(rows.map((row) => row.profissional_profile_id || row.pro_id).filter(Boolean)),
+    ) as string[];
+    const { data: pros } = proIds.length > 0
+      ? await supabase.from('profiles').select('id, full_name, avatar_url').in('id', proIds)
+      : { data: [] as any[] };
+    const proMap = new Map((pros || []).map((pro: any) => [pro.id, pro]));
+
+    const normalized = rows.map((row) => {
+      const proId = row.profissional_profile_id || row.pro_id;
+      return {
+        id: row.id,
+        event_name: row.event_name,
+        status: normalizeStatus(row.status_master || row.status || row.status_v1),
+        recipient_id: proId || null,
+        pro: proMap.get(proId) || null,
+      };
+    }).filter((row) => row.status !== "CANCELADO");
+
+    setConversations(normalized);
+    if (normalized.length > 0) setSelectedConv(normalized[0]);
     setLoading(false);
   };
 
@@ -70,7 +108,7 @@ const ClientMessages = () => {
                 )}
               >
                 <Avatar>
-                  <AvatarImage src={conv.pro?.avatar_url} />
+                  <AvatarImage src={getSafeImageUrl(conv.pro?.avatar_url, `https://api.dicebear.com/7.x/avataaars/svg?seed=${conv.pro?.full_name || "Profissional"}`)} />
                   <AvatarFallback>{conv.pro?.full_name?.[0]}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
@@ -91,9 +129,9 @@ const ClientMessages = () => {
       <div className="lg:col-span-2">
         {selectedConv ? (
           <ChatWindow 
-            recipientId={selectedConv.pro?.id}
-            recipientName={selectedConv.pro?.full_name} 
-            recipientAvatar={selectedConv.pro?.avatar_url}
+            recipientId={selectedConv.recipient_id}
+            recipientName={selectedConv.pro?.full_name || "Profissional"} 
+            recipientAvatar={getSafeImageUrl(selectedConv.pro?.avatar_url, `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedConv.pro?.full_name || "Profissional"}`)}
             contractId={selectedConv.id}
           />
         ) : (
